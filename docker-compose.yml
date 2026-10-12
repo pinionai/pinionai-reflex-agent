@@ -1,0 +1,23 @@
+services:
+  reflex-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: reflex-chat-container
+    environment:
+      # PinionAI keys are safely read from your local shell or system environment
+      - agent_id=${agent_id}
+      - host_url=${host_url}
+      - client_id=${client_id}
+      - client_secret=${client_secret}
+      - version=${version}
+      # Gemini model access: GCP_PROJECT + GCP_REGION (with credentials), or GEMINI_API_KEY
+      - GCP_PROJECT=${GCP_PROJECT:-}
+      - GCP_REGION=${GCP_REGION:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - PORT=8080
+    # Frontend, websocket and uploads are all served on this one port,
+    # the same way Cloud Run runs the image, so no reverse proxy is needed.
+    ports:
+      - "8080:8080"
+    restart: always

@@ -1,0 +1,10 @@
+───────────────────────────── Starting Reflex App ──────────────────────────────
+DeprecationWarning: App(theme=...) has been deprecated in version 0.9.0. 
+configure `rx.plugins.RadixThemesPlugin(theme=...)` in `rxconfig.py` instead. It
+will be completely removed in 1.0. 
+(.venv/lib/python3.14/site-packages/reflex_components_radix/plugin.py:104)
+Compiling: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 12/11 0:00:00
+Creating Production Build:  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 4/4 0:00:02
+───────────────────────────────── App Running ──────────────────────────────────
+App running at: http://0.0.0.0:3917/
+Info: Reflex app stopped.

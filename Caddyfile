@@ -1,0 +1,6 @@
+# Optional TLS front for a VM deployment. Reflex serves the frontend, the
+# websocket (/_event) and uploads (/_upload) on one port, so one upstream is enough.
+# Replace :9090 with your domain to get an automatic HTTPS certificate.
+:9090 {
+    reverse_proxy reflex-app:8080
+}
