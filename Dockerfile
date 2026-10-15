@@ -35,6 +35,8 @@ RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r re
 COPY rxconfig.py .
 COPY assets/ ./assets/
 COPY pinion_reflex_agent/ ./pinion_reflex_agent/
+COPY pinionai_extensions.py .
+COPY mcp_server/ ./mcp_server/
 
 # Initialize .web, install bun + node_modules and do one production build now,
 # so container startup reuses them instead of downloading anything.

@@ -12,9 +12,9 @@ services:
       - client_secret=${client_secret}
       - version=${version}
       # Gemini model access: GCP_PROJECT + GCP_REGION (with credentials), or GEMINI_API_KEY
-      - GCP_PROJECT=${GCP_PROJECT:-}
-      - GCP_REGION=${GCP_REGION:-}
-      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      # - GCP_PROJECT=${GCP_PROJECT:-}
+      # - GCP_REGION=${GCP_REGION:-}
+      # - GEMINI_API_KEY=${GEMINI_API_KEY:-}
       - PORT=8080
     # Frontend, websocket and uploads are all served on this one port,
     # the same way Cloud Run runs the image, so no reverse proxy is needed.

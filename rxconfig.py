@@ -21,6 +21,7 @@ from pinion_reflex_agent.state import AppState
 
 config = rx.Config(
     app_name="pinion_reflex_agent",
+    show_built_with_reflex=False,
 
     # 1. Port Configuration
     # Cloud Run injects PORT (8080); locally it comes from .env or defaults to 3000.

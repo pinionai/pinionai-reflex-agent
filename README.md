@@ -46,7 +46,7 @@ To stop the environment and shut down the container threads securely, press Ctrl
 docker compose down
 ```
 
-#### Considerations
+#### Pre-Launch Security Considerations
 
 Instead of typing client_secret keys into environment variable configuration, consider uploading them to Google's encrypted vault. Run these commands in your terminal (or use the Google Cloud Console UI) to create your secret slots:
 
@@ -76,61 +76,113 @@ Step 3: Inject Secrets into Your App at Runtime
 When you deploy your application container via the gcloud CLI, you instruct Google to fetch the secret from the vault at startup and inject it as a standard system environment variable inside the running container.
 
 ```bash
-# Env var names are case-sensitive and the app reads them in lowercase
-# (host_url, agent_id, ...). Do not set PUBLIC_URL: the app serves everything
-# on one port and the browser connects back to whatever URL it loaded from.
 # Non-sensitive variables go in --set-env-vars; credentials come from Secret Manager.
-gcloud run deploy pinion-reflex-chat \
-    --image gcr.io/YOUR_PROJECT_ID/pinion-reflex-chat \
-    --region us-central1 \
-    --no-cpu-throttling \
-    --session-affinity \
-    --timeout=3600 \
-    --set-env-vars host_url="https://pinionai.com",version="live",agent_id="YOUR_AGENT_ID",GCP_PROJECT="YOUR_PROJECT_ID",GCP_REGION="us-central1" \
+    --set-env-vars host_url="https://pinionai.com",version="",agent_id="YOUR_AGENT_ID" \
     --set-secrets client_secret=PINION_CLIENT_SECRET:latest,client_id=PINION_CLIENT_ID:latest
 ```
 
-The image runs `reflex run --env prod --single-port` on `$PORT` (8080), so the
-frontend, websocket and uploads share one port. With `GCP_PROJECT`/`GCP_REGION`,
-Gemini authenticates as the Cloud Run service account, which needs the
-Vertex AI User role. Alternatively provide `GEMINI_API_KEY` as a secret.
+If you choose not to use --set-serets and keep client_id and client_agent as a env variable add `client_id=YOUR_CLIENT_ID_HERE,client_secret=YOUR_CLIENT_SECRET_HERE` to the --set-env-vars
 
-###
+The image runs `reflex run --env prod --single-port` on `$PORT` (8080)
 
-Build and Deploy This to Cloud Run
+### Cloud Run - Option 1: Build and Deploy This to Cloud Run
 
 Using the Google Cloud SDK (gcloud), you can build this container in the cloud using Google Cloud Build and deploy it directly to Cloud Run with a single sequence of commands.
 Run these commands in your terminal from your project's root folder:
 bash
 
-# 1. Submit your project code to Google Cloud Build to create the Docker Image
+# 1. Update Libraries
 
 ```bash
-gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/pinion-reflex-chat
+uv pip compile requirements.in -o requirements.txt
+uv pip compile --upgrade requirements.in -o requirements.txt
+
+uv pip install -r requirements.txt
+uv pip sync requirements.txt
 ```
 
-# 2. Deploy the built container to Cloud Run
+# 2. EXPORT build variables
 
 ```bash
-gcloud run deploy pinion-reflex-chat \
- --image gcr.io/YOUR_PROJECT_ID/pinion-reflex-chat \
- --platform managed \
- --region us-central1 \
- --allow-unauthenticated \
- --no-cpu-throttling \
- --session-affinity \
- --timeout=3600 \
- --set-env-vars host_url="https://pinionai.com",version="live",agent_id="YOUR_AGENT_ID",GCP_PROJECT="YOUR_PROJECT_ID",GCP_REGION="us-central1" \
- --set-secrets client_secret=PINION_CLIENT_SECRET:latest,client_id=PINION_CLIENT_ID:latest
+export PROJECT_ID=$(gcloud config get-value project)
+export REGION="us-central1" # Or your preferred region
+export REPOSITORY="pinion-reflex-chat-repo"
+export IMAGE_NAME="pinion-reflex-chat"
+
+gcloud auth configure-docker ${REGION}-docker.pkg.dev
+
+export IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE_NAME}:latest"
 ```
 
-Critical Cloud Run Performance Flags Used Here:
+### 2.5. Create an Artifact Registry Repository (only need to do this once)
+
+Create a Docker repository in Artifact Registry to host your container image.
+
+```bash
+gcloud artifacts repositories create ${REPOSITORY} \
+    --repository-format=docker \
+    --location=${REGION} \
+    --description="Docker repository for the PINION AI Reflex Chat application"
+```
+
+# 3. Submit your project code to Google Cloud Build to create the Docker Image
+
+```bash
+gcloud builds submit --tag ${IMAGE_URI}
+```
+
+# 4. Deploy the built container to Cloud Run
+
+```bash
+gcloud run deploy ${IMAGE_NAME} \
+    --image=${IMAGE_URI} \
+    --port=8080 \
+    --service-account=${SERVICE_ACCOUNT_EMAIL} \
+    --project=${PROJECT_ID} \
+    --region=${REGION} \
+    --platform managed \
+    --region us-central1 \
+    --allow-unauthenticated \
+    --no-cpu-throttling \
+    --session-affinity \
+    --timeout=3600 \
+    --min-instances 0 \
+    --memory 2Gi \
+    --set-env-vars host_url="https://pinionai.com",version="",agent_id="YOUR_AGENT_ID" \
+    --set-secrets client_secret=PINION_CLIENT_SECRET:latest,client_id=PINION_CLIENT_ID:latest
+```
+
+_OR_
+
+# 3. USE the Deploy/Prod env.yaml file
+
+```bash
+gcloud run deploy ${IMAGE_NAME} \
+    --image=${IMAGE_URI} \
+    --port=8080 \
+    --service-account=${SERVICE_ACCOUNT_EMAIL} \
+    --project=${PROJECT_ID} \
+    --region=${REGION} \
+    --platform managed \
+    --allow-unauthenticated \
+    --no-cpu-throttling \
+    --session-affinity \
+    --timeout=3600 \
+    --min-instances 0 \
+    --memory 2Gi \
+    --env-vars-file deploy/prod/env.yaml
+```
+
+- Add this if using secrets manager: --set-secrets client_secret=PINION_CLIENT_SECRET:latest,client_id=PINION_CLIENT_ID:latest
+
+#### Critical Cloud Run Performance Flags Used Here:
 
 - --no-cpu-throttling: This turns on the "CPU Always Allocated" feature. This is absolutely vital for your app because it prevents Cloud Run from freezing your asynchronous gRPC background polling loops (listen_to_grpc_updates) between active user keypresses.
 - --session-affinity: Each chat's PinionAI client lives in the memory of the instance that created it, so a browser must keep reaching the same instance. Do not add Redis (`REDIS_URL`) to "fix" this: the client cannot be serialized, so it would be lost after every event.
 - --timeout=3600: Increases the request timeout to 1 hour. This ensures long-lived WebSocket chat connections stay alive and don't aggressively drop out if the user takes a brief pause during a chat session.
+- --min-instances: Allowing for miniimum instances to spin down to 0, saves on cost while developing, but is not recommended for production. It will increase cold starts and spin up time substantially, and not recommended for production.
 
-### Deploying to a Compute Engine VM
+### Option 2: Deploying to a Compute Engine VM
 
 If you decide to deploy to a virtual machine (VM) instead, Docker Compose is actually highly useful here.
 A Compute Engine VM is just a blank Linux operating system. It does not automatically route traffic or handle port configurations for you. If you don't use Docker Compose on a VM, the app would be served over plain HTTP on port 8080.
@@ -143,47 +195,19 @@ Caddy provisions a certificate automatically):
 
 ## AI Notes:
 
-Yes, the Dockerfile needed to change. Neither the old Docker setup nor the old Cloud Run setup could serve the app. I've rebuilt it around running everything on one port, and rehearsed the image's build and start steps locally. I couldn't build an actual image because Docker Desktop isn't running.
-
-### Why the old setup couldn't work
-
-1. **The start command can't run.** In Reflex 0.9, production mode requires the frontend and backend on the same port. I ran the old command: it exits immediately with "In prod mode, frontend and backend must run on the same port."
-2. **The final image had no Node.** `reflex run --env prod` always rebuilds the frontend when it starts, and the second build stage left Node out. The frontend built in the first stage was thrown away anyway.
-3. **Cloud Run settings pointed the browser at the wrong place.** `PUBLIC_URL="https://run.app"` would send every browser to the wrong host. The README also set uppercase `HOST_URL`/`CLIENT_SECRET`, but the code reads lowercase `host_url` etc., and Linux environment variables are case-sensitive, so they'd never be picked up.
-
-## What I changed
-
 - **[Dockerfile](Dockerfile):** one build stage that keeps Node. It does a production build of the frontend at image build time, then starts with `reflex run --env prod --single-port` on `$PORT`. Frontend, live connection and uploads all share that one port, which is how Cloud Run works.
 - **[rxconfig.py](rxconfig.py):** the backend URL is only set if you explicitly provide `PUBLIC_URL` or `BACKEND_URL`. Otherwise the page connects back to whatever host it was loaded from, and uses `wss://` under HTTPS. So Cloud Run needs no URL setting.
-- **[docker-compose.yml](docker-compose.yml):** a single service on port 8080, plus the Gemini settings (`GCP_PROJECT`, `GCP_REGION`, `GEMINI_API_KEY`).
 - **[Caddyfile](Caddyfile):** cut down to one proxy target. It's now optional, only for HTTPS when you deploy to a VM.
-- **[README.md](README.md):** fixed the deploy command (lowercase names, Gemini settings, no `PUBLIC_URL`, added `--session-affinity`) and rewrote the VM section.
-
-## How I tested it
-
-On a clean copy of the project, with Cloud Run's environment variable set and no credentials:
-
-- The build step works without a separate `reflex init`.
-- The start command takes about 6 seconds, including the frontend rebuild.
-- The page, backend health check and upload route all respond on the one port.
 
 ## Recommendations
 
 - **Don't add Redis.** Each chat's PinionAI client lives in server memory and can't be saved anywhere else. Without Redis, Reflex runs a single worker per container, which is what keeps the client alive. With Redis it would be lost after every event.
 - **Keep `--session-affinity` on Cloud Run** so a browser keeps reaching the instance that holds its chat. If an instance is replaced, the app now creates a new client, but that chat's history is lost.
 - **Keep `--no-cpu-throttling`.** The live-agent poller runs in the background between requests and would otherwise freeze.
-- **Gemini on Cloud Run:** set `GCP_PROJECT` and `GCP_REGION`, and give the service account the Vertex AI User role. Or supply `GEMINI_API_KEY` from Secret Manager.
-
-The build pins `python:3.14-slim`, which I haven't tested inside an actual image. The first real build should be a local `docker compose build`.
 
 Yes, that command works as it is. I ran it with your service still on 8080: the app came up at http://localhost:9090, the backend on 8001, and the page's live connection pointed at `ws://localhost:8001/_event`. I've stopped my test instance.
 
-It works because:
-
-- The `--frontend-port` and `--backend-port` flags take priority over `PORT=8080` in your `.env`.
-- Since the earlier `rxconfig.py` fix, the backend URL follows whatever `--backend-port` you pass. Before that fix it was stuck at `localhost:8000`, so this exact command would have shown a page with no chat.
-
-Some variants that will clash with your 8080 service:
+Some variants that will clash with other 8080 local test service:
 
 - **Plain `reflex run` with no flags** reads `PORT=8080` from `.env` and fails with "port in use". Either keep passing the flags, or change `PORT` in `.env` to something free like 9090.
 - **Production mode** needs one port for both parts, so pass a single port: `reflex run --env prod --single-port --frontend-port 9090`.
