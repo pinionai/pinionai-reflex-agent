@@ -3,3 +3,4 @@ pinionai[all]
 python-dotenv
 psycopg[binary,pool]
 fastmcp
+geopy

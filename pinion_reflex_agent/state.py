@@ -65,6 +65,60 @@ class AppState(rx.State):
         else:
             _CLIENTS_BY_TOKEN[token] = client
 
+    def get_url_params(self) -> dict[str, str] | str | None:
+        """Extract URL parameters from router query parameters or fallback environment variable."""
+        try:
+            params = dict(self.router.url.query_parameters)
+            if params:
+                return params
+        except Exception:
+            pass
+
+        try:
+            query_str = self.router.url.query
+            if query_str:
+                return query_str
+        except Exception:
+            pass
+
+        # Fallback to environment variable (for testing/CLI-style deployments)
+        env_params = os.environ.get("URL_PARAMS") or os.environ.get("url_params")
+        if env_params:
+            return env_params
+
+        # Fallback to page params if present
+        try:
+            raw_page = getattr(self.router, "_page", None)
+            if raw_page and getattr(raw_page, "params", None):
+                return dict(raw_page.params)
+        except Exception:
+            pass
+
+        return None
+
+    @rx.var
+    def url_params(self) -> dict[str, str]:
+        """Expose current URL query parameters as a reactive dictionary."""
+        params = self.get_url_params()
+        if isinstance(params, dict):
+            return params
+        if isinstance(params, str):
+            from pinionai.client import _parse_url_params
+            return _parse_url_params(params)
+        return {}
+
+    @rx.var
+    def current_page_url(self) -> str:
+        """The current page URL including query parameters."""
+        try:
+            path = self.router.url.path or "/"
+            query = self.router.url.query
+            if query:
+                return f"{path}?{query}"
+            return path
+        except Exception:
+            return "/"
+
     async def on_init(self):
         """Runs automatically when a user opens the application layout page."""
         # Clean down structural triggers
@@ -102,7 +156,8 @@ class AppState(rx.State):
                 host_url=os.environ.get("host_url"),
                 client_id=os.environ.get("client_id"),
                 client_secret=os.environ.get("client_secret"),
-                version=os.environ.get("version", None)
+                version=os.environ.get("version") or None,
+                url_params=self.get_url_params(),
             )
             return True
         except PinionAIConfigurationError as e:
@@ -176,7 +231,8 @@ class AppState(rx.State):
                 host_url=os.environ.get("host_url"),
                 client_id=os.environ.get("client_id"),
                 client_secret=os.environ.get("client_secret"),
-                version=os.environ.get("version", None),
+                version=os.environ.get("version") or None,
+                url_params=self.get_url_params(),
             )
             if not new_client.chat_messages and new_client.var.get("agentStart"):
                 new_client.add_message_to_history(
@@ -223,7 +279,8 @@ class AppState(rx.State):
                 host_url=os.environ.get("host_url"),
                 client_id=os.environ.get("client_id"),
                 client_secret=os.environ.get("client_secret"),
-                version=os.environ.get("version", None),
+                version=os.environ.get("version") or None,
+                url_params=self.get_url_params(),
             )
             self.sync_agent_ui_variables()
             self.agent_selection_status = (
@@ -322,7 +379,8 @@ class AppState(rx.State):
                 client, init_message = await AsyncPinionAIClient.create_from_stream(
                     file_stream=self._saved_file_content,
                     host_url=os.environ.get("host_url"),
-                    key_secret=key
+                    key_secret=key,
+                    url_params=self.get_url_params(),
                 )
                 if init_message == 'key_secret required for private version':
                     self.awaiting_key_secret = True
@@ -457,6 +515,29 @@ class AppState(rx.State):
                 await client.end_grpc_chat_session()
             except Exception as e:
                 print(f"end_grpc_chat_session failed: {e}")
+
+    @rx.event
+    async def restart_interface(self):
+        """Reset conversation session and reinitialize client preserving active url_params."""
+        self.end_chat_clicked = False
+        self.is_live_agent_mode = False
+        self.connection_status = "AI Mode Active"
+        self.is_thinking = False
+        self.is_recording_audio = False
+        current = self._client
+        if current is not None:
+            try:
+                if self.is_live_agent_mode:
+                    await current.end_grpc_chat_session()
+                await current.close()
+            except Exception:
+                pass
+            self._client = None
+        await self._ensure_client()
+        client = self._client
+        if client is not None:
+            self.sync_agent_ui_variables()
+            await self._load_available_agents(client)
 
     # =========================================================================
     # --- Conversational Dialog Core & Audio Processing Hooks (STT/TTS) ---

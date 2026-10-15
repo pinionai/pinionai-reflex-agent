@@ -4,6 +4,14 @@ Launch and test locally:
 
 Start the development server. This command fires up both the FastAPI backend and the Next.js/React frontend with hot-reloading enabled (changes you save to the code will immediately reflect in the browser without dropping states):
 
+- Update libraries
+
+```bash
+uv pip compile requirements.in -o requirements.txt
+uv pip compile --upgrade requirements.in -o requirements.txt
+uv pip install -r requirements.txt
+```
+
 - local development
 
 ```bash
@@ -13,6 +21,9 @@ reflex run
 ```bash
 reflex run --frontend-port 9090 --backend-port 8001
 ```
+
+open your web browser and navigate to:
+👉 http://localhost:9090
 
 - As a docker container
 
@@ -37,7 +48,7 @@ docker compose down
 
 #### Considerations
 
-Instead of typing keys into configuration scripts, you upload them to Google's encrypted vault. Run these commands in your terminal (or use the Google Cloud Console UI) to create your secret slots:
+Instead of typing client_secret keys into environment variable configuration, consider uploading them to Google's encrypted vault. Run these commands in your terminal (or use the Google Cloud Console UI) to create your secret slots:
 
 ```bash
 # 1. Create a secret container for your Pinion Client Secret
@@ -94,10 +105,13 @@ bash
 
 # 1. Submit your project code to Google Cloud Build to create the Docker Image
 
+```bash
 gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/pinion-reflex-chat
+```
 
 # 2. Deploy the built container to Cloud Run
 
+```bash
 gcloud run deploy pinion-reflex-chat \
  --image gcr.io/YOUR_PROJECT_ID/pinion-reflex-chat \
  --platform managed \
@@ -108,6 +122,7 @@ gcloud run deploy pinion-reflex-chat \
  --timeout=3600 \
  --set-env-vars host_url="https://pinionai.com",version="live",agent_id="YOUR_AGENT_ID",GCP_PROJECT="YOUR_PROJECT_ID",GCP_REGION="us-central1" \
  --set-secrets client_secret=PINION_CLIENT_SECRET:latest,client_id=PINION_CLIENT_ID:latest
+```
 
 Critical Cloud Run Performance Flags Used Here:
 
@@ -159,7 +174,7 @@ On a clean copy of the project, with Cloud Run's environment variable set and no
 - **Keep `--no-cpu-throttling`.** The live-agent poller runs in the background between requests and would otherwise freeze.
 - **Gemini on Cloud Run:** set `GCP_PROJECT` and `GCP_REGION`, and give the service account the Vertex AI User role. Or supply `GEMINI_API_KEY` from Secret Manager.
 
-I haven't deployed anything. The build pins `python:3.14-slim`, which I haven't tested inside an actual image. The first real build should be a local `docker compose build`.
+The build pins `python:3.14-slim`, which I haven't tested inside an actual image. The first real build should be a local `docker compose build`.
 
 Yes, that command works as it is. I ran it with your service still on 8080: the app came up at http://localhost:9090, the backend on 8001, and the page's live connection pointed at `ws://localhost:8001/_event`. I've stopped my test instance.
 
@@ -172,4 +187,5 @@ Some variants that will clash with your 8080 service:
 
 - **Plain `reflex run` with no flags** reads `PORT=8080` from `.env` and fails with "port in use". Either keep passing the flags, or change `PORT` in `.env` to something free like 9090.
 - **Production mode** needs one port for both parts, so pass a single port: `reflex run --env prod --single-port --frontend-port 9090`.
+
 - **Docker Compose** publishes `8080:8080`, which would also collide. Change the left-hand number in [docker-compose.yml](docker-compose.yml), e.g. `"9090:8080"`, and open http://localhost:9090. Keep the right side at 8080, because that's the port inside the container.

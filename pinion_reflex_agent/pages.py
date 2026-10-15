@@ -1,5 +1,53 @@
+import os
 import reflex as rx
+from pinionai import AsyncPinionAIClient
 from .state import AppState
+
+
+async def create_pinion_client(
+    agent_id: str | None = None,
+    url_params: dict | str | None = None,
+    host_url: str | None = None,
+    client_id: str | None = None,
+    client_secret: str | None = None,
+    version: str | None = None,
+    **kwargs,
+) -> AsyncPinionAIClient:
+    """Initialize AsyncPinionAIClient with url_params pass-through support.
+
+    If url_params is not provided, falls back to URL_PARAMS or url_params environment variables.
+    """
+    params = url_params or os.environ.get("URL_PARAMS") or os.environ.get("url_params") or None
+    return await AsyncPinionAIClient.create(
+        agent_id=agent_id or os.environ.get("agent_id"),
+        host_url=host_url or os.environ.get("host_url"),
+        client_id=client_id or os.environ.get("client_id"),
+        client_secret=client_secret or os.environ.get("client_secret"),
+        version=version or os.environ.get("version") or None,
+        url_params=params,
+        **kwargs,
+    )
+
+
+async def create_pinion_client_from_stream(
+    file_stream: str,
+    url_params: dict | str | None = None,
+    host_url: str | None = None,
+    key_secret: str | None = None,
+    **kwargs,
+) -> tuple[AsyncPinionAIClient | None, str]:
+    """Initialize AsyncPinionAIClient from stream with url_params pass-through support.
+
+    If url_params is not provided, falls back to URL_PARAMS or url_params environment variables.
+    """
+    params = url_params or os.environ.get("URL_PARAMS") or os.environ.get("url_params") or None
+    return await AsyncPinionAIClient.create_from_stream(
+        file_stream=file_stream,
+        host_url=host_url or os.environ.get("host_url"),
+        key_secret=key_secret,
+        url_params=params,
+        **kwargs,
+    )
 
 _MICROPHONE_SCRIPT = """
 (async () => {
@@ -81,7 +129,12 @@ def agent_selection_subpanel() -> rx.Component:
     """Renders account agents that can be loaded or merged into this chat."""
     return rx.vstack(
         rx.hstack(
-            rx.text("Agent Selection", font_weight="bold", size="2"),
+            rx.text(
+                "Select Agent",
+                font_weight="bold",
+                size="2",
+                color="var(--gray-12)",
+            ),
             rx.spacer(),
             rx.button(
                 rx.icon(tag="refresh-cw", size=14),
@@ -113,6 +166,7 @@ def agent_selection_subpanel() -> rx.Component:
             rx.button(
                 "Load Agent",
                 color_scheme=AppState.accent_color,
+                variant="soft",
                 size="1",
                 on_click=AppState.load_selected_agent,
                 disabled=AppState.selected_agent_uid == "",
@@ -163,11 +217,16 @@ def agent_selection_subpanel() -> rx.Component:
 def aia_management_subpanel() -> rx.Component:
     """Renders the drag-and-drop .aia file workspace context controller."""
     return rx.vstack(
-        rx.text("AIA File Upload", font_weight="bold", size="2"),
+        rx.text(
+            "Upload AIA File",
+            font_weight="bold",
+            size="2",
+            color="var(--gray-12)",
+        ),
         rx.text(
             "Load a saved agent or merge its capabilities into the current chat.",
             size="1",
-            color="gray.600",
+            color="var(--gray-11)",
         ),
         
         # Segmented Tab Selection to switch workflow mode intent before loading
@@ -175,14 +234,14 @@ def aia_management_subpanel() -> rx.Component:
             rx.button(
                 "Load AIA", 
                 color_scheme=rx.cond(~AppState.is_merging, AppState.accent_color, "gray"),
-                variant=rx.cond(~AppState.is_merging, "solid", "surface"),
+                variant=rx.cond(~AppState.is_merging, "soft", "surface"),
                 size="1",
                 on_click=AppState.set_mode_load
             ),
             rx.button(
                 "Merge AIA", 
                 color_scheme=rx.cond(AppState.is_merging, AppState.accent_color, "gray"),
-                variant=rx.cond(AppState.is_merging, "solid", "surface"),
+                variant=rx.cond(AppState.is_merging, "soft", "surface"),
                 size="1",
                 on_click=AppState.set_mode_merge
             ),
@@ -244,11 +303,8 @@ def aia_management_subpanel() -> rx.Component:
     )
 
 def sidebar_panel() -> rx.Component:
-    """The unified multi-panel dashboard pinned cleanly down the desktop view frame side."""
+    """The compact agent and session controls shown above the chat."""
     return rx.vstack(
-        rx.heading("Agent Control", size="4"),
-        rx.divider(),
-
         # 1. Choose an account agent to load or merge.
         agent_selection_subpanel(),
         rx.divider(),
@@ -259,11 +315,11 @@ def sidebar_panel() -> rx.Component:
 
         # 3. Session routing controls follow agent selection and loading.
         rx.vstack(
-            rx.text("Session Routing Engine:", font_weight="bold", size="2"),
+            rx.text("Session Route:", font_weight="bold", size="2"),
             rx.badge(
-                AppState.connection_status, 
-                color_scheme=rx.cond(AppState.is_live_agent_mode, "green", AppState.accent_color),
-                variant="surface"
+                AppState.connection_status,
+                color_scheme=rx.cond(AppState.is_live_agent_mode, "green", "gray"),
+                variant="surface",
             ),
             
             rx.cond(
@@ -290,18 +346,38 @@ def sidebar_panel() -> rx.Component:
             width="100%",
             spacing="2"
         ),
-        spacing="4",
-        padding="2em",
-        height="100vh",
+        spacing="2",
+        padding="0.75em",
+        max_height="45vh",
         overflow_y="auto",
-        background_color="#f8fafc",
-        border_right="1px solid #e2e8f0",
-        width="320px",
+        background_color="var(--gray-1)",
+        border="1px solid var(--gray-4)",
+        border_radius="md",
+        width="100%",
     )
 
 def main_chat_area() -> rx.Component:
     """The main communication chat canvas containing tracking indicators and inputs."""
     return rx.vstack(
+        rx.accordion.root(
+            rx.accordion.item(
+                header=rx.hstack(
+                    rx.text("Agent Controls", size="2", align="right", color="var(--gray-11)", font_weight="medium"),
+                    rx.spacer(),
+                    align_items="center",
+                    width="100%",
+                    border_radius="md",
+                ),
+                content=sidebar_panel(),
+                value="agent-controls",
+            ),
+            type="single",
+            collapsible=True,
+            width="100%",
+            flex_shrink="0",
+            variant="outline",
+        ),
+
         # Hidden native HTML5 Audio player block synced instantly to URL changes
         rx.cond(
             AppState.audio_file != "",
@@ -362,7 +438,8 @@ def main_chat_area() -> rx.Component:
                 spacing="2",
                 width="100%",
             ),
-            height="calc(100vh - 220px)",
+            flex="1",
+            min_height="0",
             width="100%",
             padding_y="0.5em",
         ),
@@ -436,15 +513,17 @@ def main_chat_area() -> rx.Component:
             background_color="var(--gray-1)",
             align_items="center"
         ),
-        padding="2em",
+        spacing="2",
+        padding="0.75em",
         flex="1",
-        height="100vh",
+        height="100%",
+        min_height="0",
         position="relative"
     )
 
 def index() -> rx.Component:
     """The root template index wrapper mapping base logic constraints cleanly."""
-    return rx.hstack(
+    return rx.vstack(
         # Hard Intercept Panel displaying summary message if conversion has dropped terminated
         rx.cond(
             AppState.end_chat_clicked,
@@ -454,7 +533,7 @@ def index() -> rx.Component:
                         rx.icon(tag="circle-alert", size=36, color="red"),
                         rx.heading("Conversation Halted", size="5"),
                         rx.text("This active routing conversation has closed successfully.", text_align="center", size="2"),
-                        rx.button("Restart Fresh Interface", color_scheme=AppState.accent_color, on_click=rx.redirect("/")),
+                        rx.button("Restart Fresh Interface", color_scheme=AppState.accent_color, on_click=AppState.restart_interface),
                         align="center",
                         spacing="4",
                     ),
@@ -462,16 +541,19 @@ def index() -> rx.Component:
                     max_width="400px"
                 ),
                 width="100vw",
-                height="100vh",
+                height="100dvh",
                 background_color="#f8fafc"
             ),
-            # Standard Active Multi-column Production App Screen
-            rx.hstack(
-                sidebar_panel(),
+            # Full-width chat with controls that can be opened when needed.
+            rx.box(
                 main_chat_area(),
                 width="100vw",
-                height="100vh",
-                spacing="0",
+                height="100dvh",
+                min_height="0",
+                overflow="hidden",
             )
-        )
+        ),
+        width="100vw",
+        height="100dvh",
+        spacing="0",
     )
