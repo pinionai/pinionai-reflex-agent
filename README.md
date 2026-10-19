@@ -15,8 +15,13 @@ uv pip install -r requirements.txt
 - local development
 
 ```bash
-reflex run
+npm run dev
 ```
+
+This runs the Reflex development server with the frontend on port 9090 and the
+backend on port 8001. Activate the Python environment with the project
+requirements installed before running it. You can also start the same server
+directly with `reflex run --frontend-port 9090 --backend-port 8001`.
 
 ```bash
 reflex run --frontend-port 9090 --backend-port 8001
@@ -193,7 +198,7 @@ Caddy provisions a certificate automatically):
 1. You only open ports 80/443 on your Google Cloud VM firewall.
 2. Caddy terminates TLS and proxies everything, including the websocket, to `reflex-app:8080`.
 
-## AI Notes:
+## Other Notes:
 
 - **[Dockerfile](Dockerfile):** one build stage that keeps Node. It does a production build of the frontend at image build time, then starts with `reflex run --env prod --single-port` on `$PORT`. Frontend, live connection and uploads all share that one port, which is how Cloud Run works.
 - **[rxconfig.py](rxconfig.py):** the backend URL is only set if you explicitly provide `PUBLIC_URL` or `BACKEND_URL`. Otherwise the page connects back to whatever host it was loaded from, and uses `wss://` under HTTPS. So Cloud Run needs no URL setting.
@@ -205,7 +210,7 @@ Caddy provisions a certificate automatically):
 - **Keep `--session-affinity` on Cloud Run** so a browser keeps reaching the instance that holds its chat. If an instance is replaced, the app now creates a new client, but that chat's history is lost.
 - **Keep `--no-cpu-throttling`.** The live-agent poller runs in the background between requests and would otherwise freeze.
 
-Yes, that command works as it is. I ran it with your service still on 8080: the app came up at http://localhost:9090, the backend on 8001, and the page's live connection pointed at `ws://localhost:8001/_event`. I've stopped my test instance.
+The local app comes up at http://localhost:9090, the backend on 8001, and the page's live connection pointed at `ws://localhost:8001/_event`, since you may have local services already running on 8080
 
 Some variants that will clash with other 8080 local test service:
 

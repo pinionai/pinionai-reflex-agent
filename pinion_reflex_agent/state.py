@@ -5,6 +5,7 @@ import binascii
 import os
 import time
 from pinionai import AsyncPinionAIClient
+from pinionai.file_type_detection import is_text_file_type
 from pinionai.exceptions import PinionAIConfigurationError, PinionAIError
 from .agent_selection import get_available_agents, merge_agent_capabilities
 
@@ -300,7 +301,11 @@ class AppState(rx.State):
         if client is None:
             return
         self.chat_messages = [
-            {"role": str(m.get("role", "")), "content": str(m.get("content", ""))}
+            {
+                "role": str(m.get("role", "")),
+                "content": str(m.get("content", "")),
+                "file_type": str(m.get("file_type") or "text/plain"),
+            }
             for m in client.get_chat_messages_for_display()
         ]
 
@@ -576,7 +581,7 @@ class AppState(rx.State):
                 return
 
             # Standard conversational path
-            ai_response = await client.process_user_input(message, sender="user")
+            ai_response, ai_file_type = await client.process_user_input(message, sender="user")
             self._refresh_messages()
             await client.update_pinion_session()
             if not ai_response:
@@ -584,17 +589,19 @@ class AppState(rx.State):
             yield
 
             # Fire TTS speaker tracking if feature is flagged active
-            if self.tts_enabled and ai_response:
+            if self.tts_enabled and ai_response and is_text_file_type(ai_file_type):
                 async for ev in self.generate_voice_response(ai_response):
                     yield ev
 
             # Keep popping inline structural intents if next_intent chains are nested active
             while client.next_intent:
-                chained_response = await client.process_user_input(user_input="", sender="user")
+                chained_response, chained_file_type = await client.process_user_input(
+                    user_input="", sender="user"
+                )
                 self._refresh_messages()
                 await client.update_pinion_session()
                 yield
-                if self.tts_enabled and chained_response:
+                if self.tts_enabled and chained_response and is_text_file_type(chained_file_type):
                     async for ev in self.generate_voice_response(chained_response):
                         yield ev
 

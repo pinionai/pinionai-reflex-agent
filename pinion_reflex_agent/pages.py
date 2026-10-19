@@ -1,6 +1,8 @@
 import os
+
 import reflex as rx
 from pinionai import AsyncPinionAIClient
+
 from .state import AppState
 
 
@@ -97,6 +99,102 @@ _MICROPHONE_SCRIPT = """
 def render_chat_bubble(message: dict[str, str]) -> rx.Component:
     """Renders individual chat messages securely using correct avatar bindings."""
     is_user = message["role"] == "user"
+    file_type = message["file_type"]
+    content = message["content"]
+    office_file = (
+        file_type
+        == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    ) | (
+        file_type
+        == "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    ) | (
+        file_type
+        == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+    office_filename = rx.cond(
+        file_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "response.xlsx",
+        rx.cond(
+            file_type == "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "response.pptx",
+            "response.docx",
+        ),
+    )
+    rendered_content = rx.cond(
+        file_type == "text/markdown",
+        rx.markdown(content),
+        rx.cond(
+            file_type == "text/csv",
+            rx.vstack(
+                rx.text(content, white_space="pre-wrap"),
+                rx.cond(
+                    content.startswith("http"),
+                    rx.el.a(
+                        "Download CSV",
+                        href=content,
+                        download="response.csv",
+                    ),
+                    rx.button(
+                        "Download CSV",
+                        on_click=rx.download(
+                            data=content,
+                            filename="response.csv",
+                            mime_type="text/csv",
+                        ),
+                    ),
+                ),
+                align="start",
+            ),
+            rx.cond(
+                file_type.startswith("text/")
+                | (file_type == "application/json")
+                | (file_type == "application/xml")
+                | (file_type == "application/javascript"),
+                rx.text(content, white_space="pre-wrap"),
+                rx.cond(
+                    office_file,
+                    rx.vstack(
+                        rx.text(f"File response: {file_type}"),
+                        rx.el.a(
+                            "Download file",
+                            href=content,
+                            download=office_filename,
+                            target="_blank",
+                        ),
+                        align="start",
+                    ),
+                    rx.cond(
+                        file_type == "application/pdf",
+                        rx.vstack(
+                            rx.el.iframe(
+                                src=content,
+                                title="PDF response",
+                                width="100%",
+                                height="600px",
+                            ),
+                            rx.el.a(
+                                "Download PDF",
+                                href=content,
+                                download="response.pdf",
+                                target="_blank",
+                            ),
+                            width="100%",
+                            align="start",
+                        ),
+                        rx.cond(
+                            file_type.startswith("image/"),
+                            rx.image(src=content, alt="Agent response"),
+                            rx.link(
+                                f"Open/download {file_type}",
+                                href=content,
+                                is_external=True,
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    )
     return rx.hstack(
         # Assistant Avatar Display Left
         rx.cond(
@@ -105,7 +203,7 @@ def render_chat_bubble(message: dict[str, str]) -> rx.Component:
         ),
         # Message Dialog Bubble Wrapper
         rx.box(
-            rx.markdown(message["content"]),
+            rendered_content,
             background_color=rx.cond(is_user, "var(--accent-9)", "var(--gray-2)"),
             color=rx.cond(is_user, "white", "var(--gray-12)"),
             padding="0.4em 1em",

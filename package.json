@@ -1,0 +1,7 @@
+{
+  "name": "pinionai-reflex-agent",
+  "private": true,
+  "scripts": {
+    "dev": "reflex run --frontend-port 9090 --backend-port 8001"
+  }
+}
