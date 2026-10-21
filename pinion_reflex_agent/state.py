@@ -1,3 +1,7 @@
+__lazy_modules__ = {
+    "pinionai.file_type_detection",
+}
+
 import reflex as rx
 import asyncio
 import base64

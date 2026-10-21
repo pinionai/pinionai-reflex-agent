@@ -6,7 +6,7 @@
 # rebuilds the frontend at startup, so node/bun must exist at runtime. The
 # build-time export below pre-installs frontend dependencies so that startup
 # rebuild only takes a few seconds.
-FROM python:3.14-slim
+FROM python:3.15-slim
 
 # unzip/curl are needed by Reflex to install bun
 RUN apt-get update && apt-get install -y --no-install-recommends \
