@@ -20,10 +20,13 @@ class AppState(rx.State):
     """The central state engine managing the full application context and asynchronous network loops."""
 
     # --- UI & Meta Variables ---
-    agent_title: str = "PinionAI Chat"
-    agent_subtitle: str = "Your low-code, opinionated AI Agent Platform."
-    accent_color: str = "blue"
-    assistant_img: str = "/favicon.ico"
+    agent_title: str = "CityAuto Assistant"
+    agent_subtitle: str = "Your CityAuto Car Buying & Support Guide"
+    accent_color: str = "teal"
+    agentlist_mode: bool = os.environ.get("AGENTLIST_MODE", "true").lower() in ("true", "1", "yes")
+    locale: str = "en"
+    current_stock: str = ""
+    assistant_img: str = "/avatar.png"
     user_img: str = ""
     status_message: str = "Ready"
     connection_status: str = "AI Mode Active"
@@ -131,11 +134,47 @@ class AppState(rx.State):
         self.is_thinking = False
         self.is_recording_audio = False
 
+        # Read URL params for agentlist_mode, locale, stock
+        params = self.get_url_params()
+        if isinstance(params, dict):
+            if "agentlist_mode" in params:
+                self.agentlist_mode = str(params["agentlist_mode"]).lower() in ("true", "1", "yes")
+            if "locale" in params:
+                self.locale = str(params["locale"]).lower()
+            if "stock" in params:
+                self.current_stock = str(params["stock"]).strip().upper()
+
         await self._ensure_client()
         client = self._client
         if client is not None:
             self.sync_agent_ui_variables()
-            await self._load_available_agents(client)
+            if self.agentlist_mode:
+                await self._load_available_agents(client)
+            self._ensure_initial_greeting()
+
+    def _ensure_initial_greeting(self):
+        """Sets up context-aware onboarding greeting if chat history is empty."""
+        client = self._client
+        if client is None:
+            return
+        if client.chat_messages:
+            self._refresh_messages()
+            return
+
+        is_es = self.locale.startswith("es")
+        if self.current_stock:
+            if is_es:
+                msg = f"¡Hola! Soy tu Asistente de CityAuto. Veo que estás viendo el vehículo #{self.current_stock}. ¿Te gustaría consultar opciones de financiamiento, la inspección de 150 puntos o calcular el precio total?"
+            else:
+                msg = f"Hello! I am your CityAuto Assistant. I see you are looking at vehicle stock #{self.current_stock}. Would you like to check financing estimates, view the 150-point inspection results, or calculate your out-the-door price?"
+        else:
+            if is_es:
+                msg = "¡Hola! Bienvenido a CityAuto. ¿En qué puedo ayudarte hoy? Puedes pedirme buscar inventario, verificar términos de financiamiento, calcular precios finales o consultar horarios de nuestras tiendas."
+            else:
+                msg = "Hello! Welcome to CityAuto. How can I help you today? Ask me to search our live inventory, estimate financing, calculate out-the-door pricing, or check store hours."
+
+        client.add_message_to_history("assistant", msg)
+        self._refresh_messages()
 
     async def _ensure_client(self) -> bool:
         """Creates the env-configured client if this session does not have one yet.
@@ -320,10 +359,12 @@ class AppState(rx.State):
             return
 
         var = client.var
-        self.agent_title = var.get("agentTitle") or self.agent_title
-        self.agent_subtitle = var.get("agentSubtitle") or self.agent_subtitle
-        self.accent_color = var.get("accentColor") or self.accent_color
-        self.assistant_img = var.get("assistImage") or self.assistant_img
+        self.agent_title = var.get("agentTitle") or "CityAuto Assistant"
+        self.agent_subtitle = var.get("agentSubtitle") or (
+            "Asistente de Compra y Soporte de CityAuto" if self.locale.startswith("es") else "Your CityAuto Car Buying & Support Guide"
+        )
+        self.accent_color = var.get("accentColor") or "teal"
+        self.assistant_img = var.get("assistImage") or "/avatar.png"
         self.user_img = var.get("userImage") or self.user_img
         self.transfer_allowed = bool(var.get("transferAllowed", True))
         # These hold provider names (e.g. "pinionai stt whisper server") when enabled

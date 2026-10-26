@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>README.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> or <div class="page"></div> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<p>PinionAI Reflex Agent</p>
+<p>Launch and test locally:</p>
+<p>Start the development server. This command fires up both the FastAPI backend and the Next.js/React frontend with hot-reloading enabled (changes you save to the code will immediately reflect in the browser without dropping states):</p>
+<ul>
+<li>Update libraries</li>
+</ul>
+<pre class="hljs"><code><div>uv pip compile requirements.in -o requirements.txt
+uv pip compile --upgrade requirements.in -o requirements.txt
+uv pip install -r requirements.txt
+</div></code></pre>
+<ul>
+<li>local development</li>
+</ul>
+<p>This runs the Reflex development server with the frontend on port 9090 and the
+backend on port 8001. Activate the Python environment with the project
+requirements installed before running it. You can also start the same server
+directly with <code>reflex run --frontend-port 9090 --backend-port 8001</code>.</p>
+<pre class="hljs"><code><div>reflex run --frontend-port 9090 --backend-port 8001
+</div></code></pre>
+<p>open your web browser and navigate to:
+👉 http://localhost:9090</p>
+<ul>
+<li>As a docker container</li>
+</ul>
+<pre class="hljs"><code><div><span class="hljs-comment"># 1. Build the multi-stage image (This may take a couple of minutes the first time to build the frontend node dependencies)</span>
+docker compose build
+
+<span class="hljs-comment"># 2. Fire up the containers in the foreground to monitor terminal output logs</span>
+docker compose up
+</div></code></pre>
+<p>open your web browser and navigate to:
+👉 http://localhost:8080</p>
+<p><strong>Cleaning Up</strong></p>
+<p>To stop the environment and shut down the container threads securely, press Ctrl + C in your terminal and execute:</p>
+<pre class="hljs"><code><div>docker compose down
+</div></code></pre>
+<h4 id="pre-launch-security-considerations">Pre-Launch Security Considerations</h4>
+<p>Instead of typing client_secret keys into environment variable configuration, consider uploading them to Google's encrypted vault. Run these commands in your terminal (or use the Google Cloud Console UI) to create your secret slots:</p>
+<pre class="hljs"><code><div><span class="hljs-comment"># 1. Create a secret container for your Pinion Client Secret</span>
+gcloud secrets create PINION_CLIENT_SECRET --replication-policy=<span class="hljs-string">&quot;automatic&quot;</span>
+
+<span class="hljs-comment"># 2. Add your actual secret key value into that container</span>
+<span class="hljs-built_in">echo</span> -n <span class="hljs-string">&quot;your-actual-super-secret-key-here&quot;</span> | gcloud secrets versions add PINION_CLIENT_SECRET --data-file=-
+</div></code></pre>
+<p>Step 2: Grant Cloud Run Access to the Secrets</p>
+<p>By default, Cloud Run containers are completely locked down. You must grant your Cloud Run instance permission to read from Secret Manager.</p>
+<ol>
+<li>Find the Service Account your Cloud Run service uses (usually the Default Compute Service Account).</li>
+<li>Run this command to grant it the Secret Manager Secret Accessor role specifically for your key:</li>
+</ol>
+<pre class="hljs"><code><div>gcloud secrets add-iam-policy-binding PINION_CLIENT_SECRET \
+    --member=<span class="hljs-string">&quot;serviceAccount:YOUR_PROJECT_NUMBER-compute@://gserviceaccount.com&quot;</span> \
+    --role=<span class="hljs-string">&quot;roles/secretmanager.secretAccessor&quot;</span>
+</div></code></pre>
+<p>Step 3: Inject Secrets into Your App at Runtime</p>
+<p>When you deploy your application container via the gcloud CLI, you instruct Google to fetch the secret from the vault at startup and inject it as a standard system environment variable inside the running container.</p>
+<pre class="hljs"><code><div><span class="hljs-comment"># Non-sensitive variables go in --set-env-vars; credentials come from Secret Manager.</span>
+    --set-env-vars host_url=<span class="hljs-string">&quot;https://pinionai.com&quot;</span>,version=<span class="hljs-string">&quot;&quot;</span>,agent_id=<span class="hljs-string">&quot;YOUR_AGENT_ID&quot;</span> \
+    --set-secrets client_secret=PINION_CLIENT_SECRET:latest,client_id=PINION_CLIENT_ID:latest
+</div></code></pre>
+<p>If you choose not to use --set-serets and keep client_id and client_agent as a env variable add <code>client_id=YOUR_CLIENT_ID_HERE,client_secret=YOUR_CLIENT_SECRET_HERE</code> to the --set-env-vars</p>
+<p>The image runs <code>reflex run --env prod --single-port</code> on <code>$PORT</code> (8080)</p>
+<h3 id="cloud-run---option-1-build-and-deploy-this-to-cloud-run">Cloud Run - Option 1: Build and Deploy This to Cloud Run</h3>
+<p>Using the Google Cloud SDK (gcloud), you can build this container in the cloud using Google Cloud Build and deploy it directly to Cloud Run with a single sequence of commands.
+Run these commands in your terminal from your project's root folder:
+bash</p>
+<h1 id="1-update-libraries">1. Update Libraries</h1>
+<pre class="hljs"><code><div>uv pip compile requirements.in -o requirements.txt
+uv pip compile --upgrade requirements.in -o requirements.txt
+
+uv pip install -r requirements.txt
+uv pip <span class="hljs-built_in">sync</span> requirements.txt
+</div></code></pre>
+<h1 id="2-export-build-variables">2. EXPORT build variables</h1>
+<pre class="hljs"><code><div><span class="hljs-built_in">export</span> PROJECT_ID=$(gcloud config get-value project)
+<span class="hljs-built_in">export</span> REGION=<span class="hljs-string">&quot;us-central1&quot;</span> <span class="hljs-comment"># Or your preferred region</span>
+<span class="hljs-built_in">export</span> REPOSITORY=<span class="hljs-string">&quot;pinion-reflex-chat-repo&quot;</span>
+<span class="hljs-built_in">export</span> IMAGE_NAME=<span class="hljs-string">&quot;pinion-reflex-chat&quot;</span>
+
+gcloud auth configure-docker <span class="hljs-variable">${REGION}</span>-docker.pkg.dev
+
+<span class="hljs-built_in">export</span> IMAGE_URI=<span class="hljs-string">&quot;<span class="hljs-variable">${REGION}</span>-docker.pkg.dev/<span class="hljs-variable">${PROJECT_ID}</span>/<span class="hljs-variable">${REPOSITORY}</span>/<span class="hljs-variable">${IMAGE_NAME}</span>:latest&quot;</span>
+</div></code></pre>
+<h3 id="25-create-an-artifact-registry-repository-only-need-to-do-this-once">2.5. Create an Artifact Registry Repository (only need to do this once)</h3>
+<p>Create a Docker repository in Artifact Registry to host your container image.</p>
+<pre class="hljs"><code><div>gcloud artifacts repositories create <span class="hljs-variable">${REPOSITORY}</span> \
+    --repository-format=docker \
+    --location=<span class="hljs-variable">${REGION}</span> \
+    --description=<span class="hljs-string">&quot;Docker repository for the PINION AI Reflex Chat application&quot;</span>
+</div></code></pre>
+<h1 id="3-submit-your-project-code-to-google-cloud-build-to-create-the-docker-image">3. Submit your project code to Google Cloud Build to create the Docker Image</h1>
+<pre class="hljs"><code><div>gcloud builds submit --tag <span class="hljs-variable">${IMAGE_URI}</span>
+</div></code></pre>
+<h1 id="4-deploy-the-built-container-to-cloud-run">4. Deploy the built container to Cloud Run</h1>
+<pre class="hljs"><code><div>gcloud run deploy <span class="hljs-variable">${IMAGE_NAME}</span> \
+    --image=<span class="hljs-variable">${IMAGE_URI}</span> \
+    --port=8080 \
+    --service-account=<span class="hljs-variable">${SERVICE_ACCOUNT_EMAIL}</span> \
+    --project=<span class="hljs-variable">${PROJECT_ID}</span> \
+    --region=<span class="hljs-variable">${REGION}</span> \
+    --platform managed \
+    --region us-central1 \
+    --allow-unauthenticated \
+    --no-cpu-throttling \
+    --session-affinity \
+    --<span class="hljs-built_in">timeout</span>=3600 \
+    --min-instances 0 \
+    --memory 2Gi \
+    --set-env-vars host_url=<span class="hljs-string">&quot;https://pinionai.com&quot;</span>,version=<span class="hljs-string">&quot;&quot;</span>,agent_id=<span class="hljs-string">&quot;YOUR_AGENT_ID&quot;</span> \
+    --set-secrets client_secret=PINION_CLIENT_SECRET:latest,client_id=PINION_CLIENT_ID:latest
+</div></code></pre>
+<p><em>OR</em></p>
+<h1 id="3-use-the-deployprod-envyaml-file">3. USE the Deploy/Prod env.yaml file</h1>
+<pre class="hljs"><code><div>gcloud run deploy <span class="hljs-variable">${IMAGE_NAME}</span> \
+    --image=<span class="hljs-variable">${IMAGE_URI}</span> \
+    --port=8080 \
+    --service-account=<span class="hljs-variable">${SERVICE_ACCOUNT_EMAIL}</span> \
+    --project=<span class="hljs-variable">${PROJECT_ID}</span> \
+    --region=<span class="hljs-variable">${REGION}</span> \
+    --platform managed \
+    --allow-unauthenticated \
+    --no-cpu-throttling \
+    --session-affinity \
+    --<span class="hljs-built_in">timeout</span>=3600 \
+    --min-instances 0 \
+    --memory 2Gi \
+    --env-vars-file deploy/prod/env.yaml
+</div></code></pre>
+<ul>
+<li>Add this if using secrets manager: --set-secrets client_secret=PINION_CLIENT_SECRET:latest,client_id=PINION_CLIENT_ID:latest</li>
+</ul>
+<h4 id="critical-cloud-run-performance-flags-used-here">Critical Cloud Run Performance Flags Used Here:</h4>
+<ul>
+<li>--no-cpu-throttling: This turns on the &quot;CPU Always Allocated&quot; feature. This is absolutely vital for your app because it prevents Cloud Run from freezing your asynchronous gRPC background polling loops (listen_to_grpc_updates) between active user keypresses.</li>
+<li>--session-affinity: Each chat's PinionAI client lives in the memory of the instance that created it, so a browser must keep reaching the same instance. Do not add Redis (<code>REDIS_URL</code>) to &quot;fix&quot; this: the client cannot be serialized, so it would be lost after every event.</li>
+<li>--timeout=3600: Increases the request timeout to 1 hour. This ensures long-lived WebSocket chat connections stay alive and don't aggressively drop out if the user takes a brief pause during a chat session.</li>
+<li>--min-instances: Allowing for miniimum instances to spin down to 0, saves on cost while developing, but is not recommended for production. It will increase cold starts and spin up time substantially, and not recommended for production.</li>
+</ul>
+<h3 id="option-2-deploying-to-a-compute-engine-vm">Option 2: Deploying to a Compute Engine VM</h3>
+<p>If you decide to deploy to a virtual machine (VM) instead, Docker Compose is actually highly useful here.
+A Compute Engine VM is just a blank Linux operating system. It does not automatically route traffic or handle port configurations for you. If you don't use Docker Compose on a VM, the app would be served over plain HTTP on port 8080.
+<code>docker compose up</code> runs the app on port 8080 by itself. To serve it over HTTPS,
+put the included Caddyfile in front of it (replace <code>:9090</code> with your domain so
+Caddy provisions a certificate automatically):</p>
+<ol>
+<li>You only open ports 80/443 on your Google Cloud VM firewall.</li>
+<li>Caddy terminates TLS and proxies everything, including the websocket, to <code>reflex-app:8080</code>.</li>
+</ol>
+<h2 id="other-notes">Other Notes:</h2>
+<ul>
+<li><strong><a href="Dockerfile">Dockerfile</a>:</strong> one build stage that keeps Node. It does a production build of the frontend at image build time, then starts with <code>reflex run --env prod --single-port</code> on <code>$PORT</code>. Frontend, live connection and uploads all share that one port, which is how Cloud Run works.</li>
+<li><strong><a href="rxconfig.py">rxconfig.py</a>:</strong> the backend URL is only set if you explicitly provide <code>PUBLIC_URL</code> or <code>BACKEND_URL</code>. Otherwise the page connects back to whatever host it was loaded from, and uses <code>wss://</code> under HTTPS. So Cloud Run needs no URL setting.</li>
+<li><strong><a href="Caddyfile">Caddyfile</a>:</strong> cut down to one proxy target. It's now optional, only for HTTPS when you deploy to a VM.</li>
+</ul>
+<h2 id="recommendations">Recommendations</h2>
+<ul>
+<li><strong>Don't add Redis.</strong> Each chat's PinionAI client lives in server memory and can't be saved anywhere else. Without Redis, Reflex runs a single worker per container, which is what keeps the client alive. With Redis it would be lost after every event.</li>
+<li><strong>Keep <code>--session-affinity</code> on Cloud Run</strong> so a browser keeps reaching the instance that holds its chat. If an instance is replaced, the app now creates a new client, but that chat's history is lost.</li>
+<li><strong>Keep <code>--no-cpu-throttling</code>.</strong> The live-agent poller runs in the background between requests and would otherwise freeze.</li>
+</ul>
+<p>The local app comes up at http://localhost:9090, the backend on 8001, and the page's live connection pointed at <code>ws://localhost:8001/_event</code>, since you may have local services already running on 8080</p>
+<p>Some variants that will clash with other 8080 local test service:</p>
+<ul>
+<li>
+<p><strong>Plain <code>reflex run</code> with no flags</strong> reads <code>PORT=8080</code> from <code>.env</code> and fails with &quot;port in use&quot;. Either keep passing the flags, or change <code>PORT</code> in <code>.env</code> to something free like 9090.</p>
+</li>
+<li>
+<p><strong>Production mode</strong> needs one port for both parts, so pass a single port: <code>reflex run --env prod --single-port --frontend-port 9090</code>.</p>
+</li>
+<li>
+<p><strong>Docker Compose</strong> publishes <code>8080:8080</code>, which would also collide. Change the left-hand number in <a href="docker-compose.yml">docker-compose.yml</a>, e.g. <code>&quot;9090:8080&quot;</code>, and open http://localhost:9090. Keep the right side at 8080, because that's the port inside the container.</p>
+</li>
+</ul>
+
+</body>
+</html>

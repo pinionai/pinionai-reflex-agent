@@ -14,10 +14,6 @@ uv pip install -r requirements.txt
 
 - local development
 
-```bash
-npm run dev
-```
-
 This runs the Reflex development server with the frontend on port 9090 and the
 backend on port 8001. Activate the Python environment with the project
 requirements installed before running it. You can also start the same server

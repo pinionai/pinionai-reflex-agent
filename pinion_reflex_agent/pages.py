@@ -457,23 +457,26 @@ def sidebar_panel() -> rx.Component:
 def main_chat_area() -> rx.Component:
     """The main communication chat canvas containing tracking indicators and inputs."""
     return rx.vstack(
-        rx.accordion.root(
-            rx.accordion.item(
-                header=rx.hstack(
-                    rx.text("Agent Controls", size="2", align="right", color="var(--gray-11)", font_weight="medium"),
-                    rx.spacer(),
-                    align_items="center",
-                    width="100%",
-                    border_radius="md",
+        rx.cond(
+            AppState.agentlist_mode,
+            rx.accordion.root(
+                rx.accordion.item(
+                    header=rx.hstack(
+                        rx.text("Agent Controls", size="2", align="right", color="var(--gray-11)", font_weight="medium"),
+                        rx.spacer(),
+                        align_items="center",
+                        width="100%",
+                        border_radius="md",
+                    ),
+                    content=sidebar_panel(),
+                    value="agent-controls",
                 ),
-                content=sidebar_panel(),
-                value="agent-controls",
+                type="single",
+                collapsible=True,
+                width="100%",
+                flex_shrink="0",
+                variant="outline",
             ),
-            type="single",
-            collapsible=True,
-            width="100%",
-            flex_shrink="0",
-            variant="outline",
         ),
 
         # Hidden native HTML5 Audio player block synced instantly to URL changes
@@ -547,7 +550,11 @@ def main_chat_area() -> rx.Component:
             rx.form(
                 rx.hstack(
                     rx.input(
-                        placeholder="Type an issue or request...",
+                        placeholder=rx.cond(
+                            AppState.locale == "es",
+                            "Escriba una pregunta sobre autos, financiamiento...",
+                            "Type your question here.",
+                        ),
                         id="user_input_field",
                         name="user_input_field",
                         width="100%",
@@ -638,20 +645,20 @@ def index() -> rx.Component:
                     padding="2em",
                     max_width="400px"
                 ),
-                width="100vw",
+                width="100%",
                 height="100dvh",
                 background_color="#f8fafc"
             ),
             # Full-width chat with controls that can be opened when needed.
             rx.box(
                 main_chat_area(),
-                width="100vw",
+                width="100%",
                 height="100dvh",
                 min_height="0",
                 overflow="hidden",
             )
         ),
-        width="100vw",
+        width="100%",
         height="100dvh",
         spacing="0",
     )
