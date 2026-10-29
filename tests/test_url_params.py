@@ -9,16 +9,30 @@ from reflex.istate.data import RouterData, PageData, ReflexURL
 from reflex.istate.manager.token import StateToken
 
 from pinion_reflex_agent.state import AppState
-from pinion_reflex_agent.agent_selection import merge_agent_capabilities
-from pinion_reflex_agent.pages import create_pinion_client, create_pinion_client_from_stream
+from pinion_reflex_agent.agent_selection import merge_agent_capabilities, switch_agent_capabilities
+from pinion_reflex_agent.pages import (
+    create_pinion_client,
+    create_pinion_client_from_stream,
+    agent_selection_subpanel,
+    aia_management_subpanel,
+)
 
 
 class TestUrlParamsSupport(unittest.IsolatedAsyncioTestCase):
     @classmethod
     def setUpClass(cls):
+        from reflex_base.registry import RegistrationContext
+        ctx = RegistrationContext.ensure_context()
+        try:
+            _ = ctx.app
+            RegistrationContext.set(ctx.fork())
+        except Exception:
+            pass
         cls.app = rx.App()
 
     async def asyncSetUp(self):
+        from pinion_reflex_agent.state import _CLIENTS_BY_TOKEN
+        _CLIENTS_BY_TOKEN.clear()
         self.token = StateToken(ident=f"test_token_{self._testMethodName}", cls=AppState)
         self.state = await self.app.state_manager.get_state(self.token)
 
@@ -123,6 +137,35 @@ class TestUrlParamsSupport(unittest.IsolatedAsyncioTestCase):
                 version=None,
                 url_params={"email": "alan@pinionai.com", "table": "5"}
             )
+            self.assertEqual(self.state.status_message, "Ready")
+
+    @patch("pinion_reflex_agent.state.AsyncPinionAIClient.create", new_callable=AsyncMock)
+    async def test_ensure_client_resets_status_message_on_success(self, mock_client_create):
+        """Verify _ensure_client resets status_message to Ready after a prior failure."""
+        fake_client = MagicMock()
+        mock_client_create.return_value = fake_client
+
+        self.state.status_message = "Failed to initialize configuration: Network error"
+        self.state._client = None
+
+        with patch.dict(os.environ, {
+            "agent_id": "test_agent_123",
+            "host_url": "https://api.pinionai.com",
+            "client_id": "cid_abc",
+            "client_secret": "csec_xyz",
+        }):
+            success = await self.state._ensure_client()
+            self.assertTrue(success)
+            self.assertEqual(self.state.status_message, "Ready")
+
+    async def test_ensure_client_clears_stale_error_when_client_already_active(self):
+        """Verify _ensure_client resets stale failure status_message if client is already present."""
+        self.state._client = MagicMock()
+        self.state.status_message = "Failed to initialize configuration: Connection refused"
+
+        success = await self.state._ensure_client()
+        self.assertTrue(success)
+        self.assertEqual(self.state.status_message, "Ready")
 
     @patch("pinion_reflex_agent.state.AsyncPinionAIClient.create_from_stream", new_callable=AsyncMock)
     async def test_execute_agent_action_load_passes_url_params(self, mock_create_from_stream):
@@ -215,6 +258,259 @@ class TestUrlParamsSupport(unittest.IsolatedAsyncioTestCase):
             key_secret=None,
             url_params={"email": "alan@pinionai.com"}
         )
+
+
+    @patch("pinion_reflex_agent.state.AsyncPinionAIClient.create", new_callable=AsyncMock)
+    async def test_language_param_in_url_params(self, mock_create):
+        """Verify language/lang query parameter sets locale and language in state."""
+        self.state.router = RouterData(
+            url=ReflexURL("http://localhost:3000/?language=es")
+        )
+        fake_client = MagicMock()
+        fake_client.chat_messages = []
+        fake_client.var = {}
+        mock_create.return_value = fake_client
+        with patch.dict(os.environ, {
+            "agent_id": "test_agent",
+            "host_url": "https://api.pinionai.com",
+            "client_id": "cid",
+            "client_secret": "csec",
+        }):
+            self.state.agentlist_mode = False
+            await self.state.on_init()
+            self.assertEqual(self.state.language, "es")
+            self.assertEqual(self.state.locale, "es")
+            self.assertEqual(fake_client.var.get("user_language"), "es")
+
+    @patch("pinion_reflex_agent.state.AsyncPinionAIClient.create", new_callable=AsyncMock)
+    async def test_language_env_var_fallback(self, mock_create):
+        """Verify LANGUAGE env var sets language and locale when URL has no language."""
+        self.state.router = RouterData(
+            url=ReflexURL("http://localhost:3000/")
+        )
+        fake_client = MagicMock()
+        fake_client.chat_messages = []
+        fake_client.var = {}
+        mock_create.return_value = fake_client
+        with patch.dict(os.environ, {
+            "agent_id": "test_agent",
+            "host_url": "https://api.pinionai.com",
+            "client_id": "cid",
+            "client_secret": "csec",
+            "LANGUAGE": "fr",
+        }):
+            self.state.agentlist_mode = False
+            await self.state.on_init()
+            self.assertEqual(self.state.language, "fr")
+            self.assertEqual(self.state.locale, "fr")
+            self.assertEqual(fake_client.var.get("user_language"), "fr")
+
+    def test_set_language_method(self):
+        """Verify set_language updates state and client.var."""
+        fake_client = MagicMock()
+        fake_client.var = {}
+        self.state._client = fake_client
+        self.state.set_language("de")
+        self.assertEqual(self.state.language, "de")
+        self.assertEqual(self.state.locale, "de")
+        self.assertEqual(fake_client.var.get("user_language"), "de")
+
+    async def test_handle_text_submit_passes_language(self):
+        """Verify handle_text_submit passes language to client.process_user_input."""
+        fake_client = MagicMock()
+        fake_client.process_user_input = AsyncMock(return_value=("Hola", "text/plain"))
+        fake_client.update_pinion_session = AsyncMock()
+        fake_client.transfer_requested = False
+        fake_client.next_intent = None
+        fake_client.chat_messages = []
+        fake_client.var = {}
+
+        self.state._client = fake_client
+        self.state.language = "es"
+        self.state.locale = "es"
+        self.state.tts_enabled = False
+
+        events = [ev async for ev in self.state.handle_text_submit("¿A qué hora abren?")]
+        fake_client.process_user_input.assert_awaited_once_with(
+            "¿A qué hora abren?", sender="user", language="es"
+        )
+
+    @patch("pinion_reflex_agent.agent_selection.AsyncPinionAIClient.create", new_callable=AsyncMock)
+    async def test_switch_agent_capabilities_passes_url_params(self, mock_client_create):
+        """Verify switch_agent_capabilities forwards url_params to AsyncPinionAIClient.create and calls client.switch_agent."""
+        mock_source = MagicMock()
+        mock_source.get_pinionai_version_info = AsyncMock(return_value={"version": "2.0"})
+        mock_source.close = AsyncMock()
+        mock_client_create.return_value = mock_source
+
+        mock_client = MagicMock()
+        mock_client.switch_agent = AsyncMock(return_value="Switched")
+
+        result = await switch_agent_capabilities(
+            client=mock_client,
+            agent_id="agent_to_switch",
+            host_url="https://api.pinionai.com",
+            client_id="cid",
+            client_secret="csec",
+            version="live",
+            url_params={"email": "alan@pinionai.com"}
+        )
+        self.assertEqual(result, "Switched")
+        mock_client_create.assert_awaited_once_with(
+            agent_id="agent_to_switch",
+            host_url="https://api.pinionai.com",
+            client_id="cid",
+            client_secret="csec",
+            version="live",
+            url_params={"email": "alan@pinionai.com"}
+        )
+        mock_client.switch_agent.assert_awaited_once_with({"version": "2.0"})
+
+    @patch("pinion_reflex_agent.state.switch_agent_capabilities", new_callable=AsyncMock)
+    async def test_switch_selected_agent(self, mock_switch):
+        """Verify switch_selected_agent delegates to switch_agent_capabilities and updates state."""
+        self.state.router = RouterData(
+            url=ReflexURL("http://localhost:3000/?email=alan@pinionai.com")
+        )
+        fake_client = MagicMock()
+        fake_client._agent_id = "agent_current"
+        fake_client.var = {}
+        fake_client.chat_messages = []
+        self.state._client = fake_client
+
+        self.state.available_agents = [
+            {"uid": "agent_current", "agent_name": "Current Agent"},
+            {"uid": "agent_new", "agent_name": "New Agent"},
+        ]
+        self.state.selected_agent_uid = "agent_new"
+
+        with patch.dict(os.environ, {
+            "host_url": "https://api.pinionai.com",
+            "client_id": "cid",
+            "client_secret": "csec",
+            "version": "",
+        }):
+            await self.state.switch_selected_agent()
+            mock_switch.assert_awaited_once_with(
+                fake_client,
+                "agent_new",
+                host_url="https://api.pinionai.com",
+                client_id="cid",
+                client_secret="csec",
+                version=None,
+                url_params={"email": "alan@pinionai.com"},
+            )
+            self.assertIn("Switched to agent: New Agent", self.state.agent_selection_status)
+
+    async def test_switch_selected_agent_already_active(self):
+        """Verify switch_selected_agent informs user if agent is already active."""
+        fake_client = MagicMock()
+        fake_client._agent_id = "agent_active"
+        self.state._client = fake_client
+
+        self.state.available_agents = [{"uid": "agent_active", "agent_name": "Active Agent"}]
+        self.state.selected_agent_uid = "agent_active"
+
+        await self.state.switch_selected_agent()
+        self.assertEqual(self.state.agent_selection_status, "Active Agent is already active.")
+
+    async def test_switch_selected_agent_no_client(self):
+        """Verify switch_selected_agent handles no client state."""
+        self.state._client = None
+        await self.state.switch_selected_agent()
+        self.assertEqual(self.state.agent_selection_status, "No active chat agent is available to switch.")
+
+    @patch.object(AppState, "load_selected_agent", new_callable=AsyncMock)
+    async def test_start_selected_agent_calls_load(self, mock_load):
+        """Verify start_selected_agent forwards to load_selected_agent."""
+        await self.state.start_selected_agent()
+        mock_load.assert_awaited_once()
+
+    async def test_set_mode_methods(self):
+        """Verify set_mode_start, set_mode_switch, and set_mode_merge update aia_mode and is_merging."""
+        self.state.set_mode_start()
+        self.assertEqual(self.state.aia_mode, "start")
+        self.assertFalse(self.state.is_merging)
+
+        self.state.set_mode_switch()
+        self.assertEqual(self.state.aia_mode, "switch")
+        self.assertFalse(self.state.is_merging)
+
+        self.state.set_mode_merge()
+        self.assertEqual(self.state.aia_mode, "merge")
+        self.assertTrue(self.state.is_merging)
+
+        self.state.set_mode_load()
+        self.assertEqual(self.state.aia_mode, "start")
+        self.assertFalse(self.state.is_merging)
+
+    async def test_execute_agent_action_switch_aia_success(self):
+        """Verify _execute_agent_action in switch mode calls switch_agent_from_aia."""
+        fake_client = MagicMock()
+        fake_client.switch_agent_from_aia = AsyncMock(return_value="Agent switched successfully!")
+        fake_client.var = {}
+        fake_client.chat_messages = []
+        self.state._client = fake_client
+
+        self.state.aia_mode = "switch"
+        self.state._saved_file_content = "dummy_switch_file"
+        self.state.secret_key = "test_key"
+
+        await self.state._execute_agent_action()
+
+        fake_client.switch_agent_from_aia.assert_awaited_once_with(
+            file_stream="dummy_switch_file",
+            key_secret="test_key",
+        )
+        self.assertEqual(self.state.status_message, "Agent switched successfully!")
+        self.assertFalse(self.state.switching_aia)
+        self.assertEqual(self.state.secret_key, "")
+
+    async def test_execute_agent_action_switch_aia_key_required(self):
+        """Verify _execute_agent_action sets switching_aia=True when private key is required."""
+        fake_client = MagicMock()
+        fake_client.switch_agent_from_aia = AsyncMock(
+            return_value="key_secret required for private version"
+        )
+        self.state._client = fake_client
+
+        self.state.aia_mode = "switch"
+        self.state._saved_file_content = "encrypted_aia_content"
+        self.state.secret_key = ""
+
+        await self.state._execute_agent_action()
+
+        self.assertTrue(self.state.switching_aia)
+        self.assertFalse(self.state.merging_aia)
+        self.assertFalse(self.state.awaiting_key_secret)
+
+    async def test_execute_agent_action_switch_aia_unlock_flow(self):
+        """Verify unlocking private AIA in switch mode calls switch_agent_from_aia with key."""
+        fake_client = MagicMock()
+        fake_client.switch_agent_from_aia = AsyncMock(return_value="Decrypted and switched!")
+        fake_client.var = {}
+        fake_client.chat_messages = []
+        self.state._client = fake_client
+
+        self.state.switching_aia = True
+        self.state._saved_file_content = "encrypted_aia_content"
+        self.state.set_secret_key("supersecret")
+
+        await self.state.submit_secret_key()
+
+        fake_client.switch_agent_from_aia.assert_awaited_once_with(
+            file_stream="encrypted_aia_content",
+            key_secret="supersecret",
+        )
+        self.assertFalse(self.state.switching_aia)
+        self.assertEqual(self.state.status_message, "Decrypted and switched!")
+
+    def test_render_subpanels(self):
+        """Verify agent_selection_subpanel and aia_management_subpanel render correctly as Reflex components."""
+        agent_sub = agent_selection_subpanel()
+        self.assertIsNotNone(agent_sub)
+        aia_sub = aia_management_subpanel()
+        self.assertIsNotNone(aia_sub)
 
 
 if __name__ == "__main__":

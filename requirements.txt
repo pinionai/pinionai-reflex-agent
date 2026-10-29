@@ -46,13 +46,13 @@ beartype==0.23.1
     #   py-key-value-aio
 bidict==0.24.1
     # via python-socketio
-boto3==1.43.118
+boto3==1.43.122
     # via pinionai
-botocore==1.43.118
+botocore==1.43.122
     # via
     #   boto3
     #   s3transfer
-cachetools==7.2.5
+cachetools==7.2.7
     # via py-key-value-aio
 caio==0.12.10
     # via aiofile
@@ -83,13 +83,13 @@ cryptography==50.0.2
     #   pinionai
     #   pyjwt
     #   sendgrid
-cyclopts==5.3.0
+cyclopts==5.3.2
     # via fastmcp-slim
 distro==1.9.0
     # via
     #   google-genai
     #   telnyx
-dnspython==2.9.0
+dnspython==2.9.1
     # via email-validator
 docstring-parser==0.18.0
     # via
@@ -99,11 +99,11 @@ email-validator==2.3.0
     # via pydantic
 exceptiongroup==1.3.1
     # via fastmcp-slim
-fastmcp==4.1.3
+fastmcp==4.1.4
     # via
     #   -r requirements.in
     #   pinionai
-fastmcp-slim==4.1.3
+fastmcp-slim==4.1.4
     # via fastmcp
 ffmpeg-python==0.2.0
     # via pinionai
@@ -117,7 +117,7 @@ geographiclib==2.1
     # via geopy
 geopy==2.5.0
     # via -r requirements.in
-google-api-core==2.43.0
+google-api-core==2.43.2
     # via
     #   google-cloud-core
     #   google-cloud-speech
@@ -141,7 +141,7 @@ google-crc32c==1.9.0
     # via
     #   google-cloud-storage
     #   google-resumable-media
-google-genai==2.33.0
+google-genai==2.34.0
     # via pinionai
 google-resumable-media==2.11.0
     # via google-cloud-storage
@@ -149,17 +149,17 @@ googleapis-common-protos==1.76.0
     # via
     #   google-api-core
     #   grpcio-status
-granian==2.8.5
+granian==2.8.7
     # via reflex
 griffelib==2.4.1
     # via fastmcp-slim
-grpcio==1.84.1
+grpcio==1.85.0
     # via
     #   google-api-core
     #   google-cloud-speech
     #   grpcio-status
     #   pinionai
-grpcio-status==1.84.1
+grpcio-status==1.85.0
     # via google-api-core
 h11==0.16.0
     # via
@@ -201,12 +201,6 @@ idna==3.20
     #   yarl
 invoke==3.0.3
     # via paramiko
-jaraco-classes==3.4.0
-    # via keyring
-jaraco-context==6.1.2
-    # via keyring
-jaraco-functools==4.6.0
-    # via keyring
 jinja2==3.1.6
     # via pinionai
 jiter==0.18.0
@@ -221,7 +215,7 @@ joserfc==1.7.7
     # via
     #   authlib
     #   fastmcp-slim
-jsonpath-ng==1.13.0
+jsonpath-ng==1.15.0
     # via pinionai
 jsonref==1.1.0
     # via fastmcp-slim
@@ -231,8 +225,6 @@ jsonschema-path==0.5.0
     # via fastmcp-slim
 jsonschema-specifications==2025.9.1
     # via jsonschema
-keyring==25.7.0
-    # via py-key-value-aio
 levenshtein==0.27.5
     # via python-levenshtein
 markdown==3.11.2
@@ -253,21 +245,17 @@ mdurl==0.1.2
     # via markdown-it-py
 mini-racer==0.14.1
     # via pinionai
-more-itertools==11.2.1
-    # via
-    #   jaraco-classes
-    #   jaraco-functools
 multidict==7.2.1
     # via
     #   aiohttp
     #   yarl
 numpy==2.5.4
     # via pandas
-openai==3.37.0
+openai==3.41.0
     # via pinionai
 openapi-pydantic==0.6.0
     # via fastmcp-slim
-opentelemetry-api==1.45.1
+opentelemetry-api==1.45.2
     # via
     #   anthropic
     #   fastmcp-slim
@@ -285,9 +273,9 @@ paramiko==5.1.0
     # via pinionai
 pathable==0.6.0
     # via jsonschema-path
-pinionai==0.4.8
+pinionai==0.4.9
     # via -r requirements.in
-platformdirs==4.13.5
+platformdirs==4.14.0
     # via
     #   fastmcp-slim
     #   reflex-base
@@ -320,13 +308,13 @@ puremagic==2.2.0
     # via pinionai
 py-key-value-aio==0.4.6
     # via fastmcp-slim
-pyasn1==0.6.4
+pyasn1==0.6.5
     # via pyasn1-modules
 pyasn1-modules==0.4.2
     # via google-auth
 pycparser==3.12
     # via cffi
-pydantic==2.14.1
+pydantic==2.14.2
     # via
     #   anthropic
     #   fastmcp-slim
@@ -337,9 +325,9 @@ pydantic==2.14.1
     #   openapi-pydantic
     #   pydantic-settings
     #   telnyx
-pydantic-core==2.50.1
+pydantic-core==2.50.2
     # via pydantic
-pydantic-settings==2.16.1
+pydantic-settings==2.16.2
     # via fastmcp-slim
 pygments==2.21.0
     # via
@@ -362,7 +350,7 @@ python-dotenv==1.2.4
     #   -r requirements.in
     #   fastmcp-slim
     #   pydantic-settings
-python-engineio==4.14.0
+python-engineio==4.15.1
     # via python-socketio
 python-http-client==3.3.7
     # via sendgrid
@@ -389,9 +377,9 @@ referencing==0.37.0
     #   jsonschema
     #   jsonschema-path
     #   jsonschema-specifications
-reflex==0.10.0
+reflex==0.10.1
     # via -r requirements.in
-reflex-base==0.10.0
+reflex-base==0.10.1
     # via
     #   reflex
     #   reflex-components-code
@@ -406,13 +394,13 @@ reflex-base==0.10.0
     #   reflex-components-react-player
     #   reflex-components-recharts
     #   reflex-components-sonner
-reflex-build-sdk==0.1.0
+reflex-build-sdk==0.1.1
     # via reflex-hosting-cli
-reflex-components-code==0.10.0
+reflex-components-code==0.10.1
     # via
     #   reflex
     #   reflex-components-markdown
-reflex-components-core==0.10.0
+reflex-components-core==0.10.1
     # via
     #   reflex
     #   reflex-components-code
@@ -422,11 +410,11 @@ reflex-components-core==0.10.0
     #   reflex-components-radix
     #   reflex-components-react-player
     #   reflex-components-recharts
-reflex-components-dataeditor==0.10.0
+reflex-components-dataeditor==0.10.1
     # via reflex
 reflex-components-gridjs==0.10.0
     # via reflex
-reflex-components-lucide==1.1.0
+reflex-components-lucide==1.1.1
     # via
     #   reflex
     #   reflex-components-code
@@ -435,11 +423,11 @@ reflex-components-lucide==1.1.0
     #   reflex-components-sonner
 reflex-components-markdown==0.10.0
     # via reflex
-reflex-components-moment==0.10.0
+reflex-components-moment==0.10.1
     # via reflex
 reflex-components-plotly==0.10.0
     # via reflex
-reflex-components-radix==0.10.0
+reflex-components-radix==0.10.1
     # via
     #   reflex
     #   reflex-components-code
@@ -452,7 +440,7 @@ reflex-components-sonner==0.10.0
     # via
     #   reflex
     #   reflex-components-core
-reflex-hosting-cli==0.2.0
+reflex-hosting-cli==0.2.1
     # via reflex
 requests==2.34.2
     # via
@@ -498,7 +486,7 @@ starlette==1.10.0
     #   reflex
     #   reflex-components-core
     #   sse-starlette
-telnyx==4.189.0
+telnyx==4.190.0
     # via pinionai
 tenacity==9.1.4
     # via google-genai

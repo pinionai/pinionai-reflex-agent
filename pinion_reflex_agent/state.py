@@ -11,7 +11,7 @@ import time
 from pinionai import AsyncPinionAIClient
 from pinionai.file_type_detection import is_text_file_type
 from pinionai.exceptions import PinionAIConfigurationError, PinionAIError
-from .agent_selection import get_available_agents, merge_agent_capabilities
+from .agent_selection import get_available_agents, merge_agent_capabilities, switch_agent_capabilities
 
 # Pinion clients contain CFFI handles and must stay outside serialized Reflex state.
 _CLIENTS_BY_TOKEN: dict[str, AsyncPinionAIClient] = {}
@@ -20,20 +20,24 @@ class AppState(rx.State):
     """The central state engine managing the full application context and asynchronous network loops."""
 
     # --- UI & Meta Variables ---
-    agent_title: str = "CityAuto Assistant"
-    agent_subtitle: str = "Your CityAuto Car Buying & Support Guide"
+    agent_title: str = "Thinking..."
+    agent_subtitle: str = "Loading your AI assistant..."
     accent_color: str = "teal"
     agentlist_mode: bool = os.environ.get("AGENTLIST_MODE", "true").lower() in ("true", "1", "yes")
     locale: str = "en"
+    language: str = "en"
     current_stock: str = ""
-    assistant_img: str = "/avatar.png"
+    assistant_img: str = "/IconCircle144.png"
     user_img: str = ""
     status_message: str = "Ready"
     connection_status: str = "AI Mode Active"
 
     # --- Flow Control Toggles (Replaces st.session_state flags) ---
     awaiting_key_secret: bool = False
+    merging_aia: bool = False
+    switching_aia: bool = False
     is_merging: bool = False
+    aia_mode: str = "start"
     end_chat_clicked: bool = False
     transfer_allowed: bool = True
     is_live_agent_mode: bool = False
@@ -134,23 +138,44 @@ class AppState(rx.State):
         self.is_thinking = False
         self.is_recording_audio = False
 
-        # Read URL params for agentlist_mode, locale, stock
+        # Read URL params for agentlist_mode, locale/language, stock
         params = self.get_url_params()
         if isinstance(params, dict):
             if "agentlist_mode" in params:
                 self.agentlist_mode = str(params["agentlist_mode"]).lower() in ("true", "1", "yes")
-            if "locale" in params:
-                self.locale = str(params["locale"]).lower()
+            raw_lang = params.get("language") or params.get("lang") or params.get("locale")
+            if raw_lang:
+                self.locale = str(raw_lang).strip().lower()
+                self.language = self.locale
             if "stock" in params:
                 self.current_stock = str(params["stock"]).strip().upper()
+
+        if self.locale == "en":
+            env_lang = os.environ.get("LANGUAGE") or os.environ.get("language")
+            if env_lang:
+                self.locale = env_lang.strip().lower()
+                self.language = self.locale
 
         await self._ensure_client()
         client = self._client
         if client is not None:
+            if self.language and self.language != "en":
+                client.var["user_language"] = self.language
+            elif client.var.get("user_language"):
+                self.language = client.var["user_language"]
+                self.locale = self.language
             self.sync_agent_ui_variables()
             if self.agentlist_mode:
                 await self._load_available_agents(client)
             self._ensure_initial_greeting()
+
+    def set_language(self, lang: str):
+        """Sets the active translation language."""
+        self.language = lang.strip().lower()
+        self.locale = self.language
+        client = self._client
+        if client is not None:
+            client.var["user_language"] = self.language
 
     def _ensure_initial_greeting(self):
         """Sets up context-aware onboarding greeting if chat history is empty."""
@@ -161,7 +186,7 @@ class AppState(rx.State):
             self._refresh_messages()
             return
 
-        is_es = self.locale.startswith("es")
+        is_es = self.locale.startswith("es") or self.language.startswith("es")
         if self.current_stock:
             if is_es:
                 msg = f"¡Hola! Soy tu Asistente de CityAuto. Veo que estás viendo el vehículo #{self.current_stock}. ¿Te gustaría consultar opciones de financiamiento, la inspección de 150 puntos o calcular el precio total?"
@@ -184,6 +209,8 @@ class AppState(rx.State):
         different worker. Recreate it lazily instead of silently dropping messages.
         """
         if self._client is not None:
+            if self.status_message.startswith("Failed to initialize"):
+                self.status_message = "Ready"
             return True
         available_uids = {agent["uid"] for agent in self.available_agents}
         agent_id = (
@@ -203,6 +230,7 @@ class AppState(rx.State):
                 version=os.environ.get("version") or None,
                 url_params=self.get_url_params(),
             )
+            self.status_message = "Ready"
             return True
         except PinionAIConfigurationError as e:
             self.status_message = f"Failed to initialize configuration: {e}"
@@ -291,10 +319,58 @@ class AppState(rx.State):
             self.is_live_agent_mode = False
             self.end_chat_clicked = False
             self.connection_status = "AI Mode Active"
+            self.status_message = "Ready"
             self.sync_agent_ui_variables()
             self.agent_selection_status = f"Loaded agent: {selected_agent['agent_name']}."
         except Exception as e:
             self.agent_selection_status = f"Failed to load selected agent: {e}"
+
+    @rx.event
+    async def start_selected_agent(self):
+        """Replace the current chat client with the selected account agent (fresh session)."""
+        await self.load_selected_agent()
+
+    @rx.event
+    async def switch_selected_agent(self):
+        """Switch to the selected account agent's behavior and intents while retaining current conversation variables."""
+        client = self._client
+        if client is None:
+            self.agent_selection_status = "No active chat agent is available to switch."
+            return
+
+        selected_uid = self.selected_agent_uid
+        selected_agent = next(
+            (
+                agent
+                for agent in self.available_agents
+                if agent["uid"] == selected_uid
+            ),
+            None,
+        )
+        if selected_agent is None:
+            self.agent_selection_status = "Select an available agent before switching."
+            return
+
+        if getattr(client, "_agent_id", None) == selected_uid:
+            self.agent_selection_status = f"{selected_agent['agent_name']} is already active."
+            return
+
+        try:
+            await switch_agent_capabilities(
+                client,
+                selected_agent["uid"],
+                host_url=os.environ.get("host_url"),
+                client_id=os.environ.get("client_id"),
+                client_secret=os.environ.get("client_secret"),
+                version=os.environ.get("version") or None,
+                url_params=self.get_url_params(),
+            )
+            self.sync_agent_ui_variables()
+            self.agent_selection_status = (
+                f"Switched to agent: {selected_agent['agent_name']}. Existing session variables preserved."
+            )
+        except Exception as e:
+            self.agent_selection_status = f"Failed to switch selected agent: {e}"
 
     @rx.event
     async def merge_selected_agent(self):
@@ -402,11 +478,31 @@ class AppState(rx.State):
         await self._execute_agent_action()
 
     async def _execute_agent_action(self):
-        """Internal router calling PinionAI dependent on load or capabilities merge modes."""
+        """Internal router calling PinionAI dependent on start, switch, or merge modes."""
         try:
             key = self.secret_key if self.secret_key else None
 
-            if self.is_merging:
+            if self.switching_aia or (self.aia_mode == "switch" and not self.awaiting_key_secret and not self.merging_aia):
+                # --- CAPABILITIES SWITCH FLOW ---
+                client = self._client
+                if client is None:
+                    self.status_message = "No active session to switch."
+                    return
+                result_msg = await client.switch_agent_from_aia(
+                    file_stream=self._saved_file_content,
+                    key_secret=key,
+                )
+                if result_msg == 'key_secret required for private version':
+                    self.switching_aia = True
+                    self.merging_aia = False
+                    self.awaiting_key_secret = False
+                elif "Error" not in result_msg:
+                    self.reset_flow_states()
+                    self.sync_agent_ui_variables()
+                    self.status_message = result_msg
+                else:
+                    self.status_message = f"Switch error: {result_msg}"
+            elif self.merging_aia or self.is_merging or self.aia_mode == "merge":
                 # --- CAPABILITIES MERGE FLOW ---
                 client = self._client
                 if client is None:
@@ -414,10 +510,12 @@ class AppState(rx.State):
                     return
                 result_msg = await client.add_agent_from_aia(
                     file_stream=self._saved_file_content,
-                    key_secret=key
+                    key_secret=key,
                 )
                 if result_msg == 'key_secret required for private version':
-                    self.awaiting_key_secret = True
+                    self.merging_aia = True
+                    self.switching_aia = False
+                    self.awaiting_key_secret = False
                 elif "Error" not in result_msg:
                     self.reset_flow_states()
                     self.sync_agent_ui_variables()
@@ -425,7 +523,7 @@ class AppState(rx.State):
                 else:
                     self.status_message = f"Merge error: {result_msg}"
             else:
-                # --- FRESH INITIAL LOAD FLOW ---
+                # --- FRESH INITIAL START FLOW ---
                 client, init_message = await AsyncPinionAIClient.create_from_stream(
                     file_stream=self._saved_file_content,
                     host_url=os.environ.get("host_url"),
@@ -434,12 +532,17 @@ class AppState(rx.State):
                 )
                 if init_message == 'key_secret required for private version':
                     self.awaiting_key_secret = True
+                    self.merging_aia = False
+                    self.switching_aia = False
                 elif client:
                     previous_client = self._client
                     if previous_client is not None:
+                        if self.is_live_agent_mode:
+                            await previous_client.end_grpc_chat_session()
                         await previous_client.close()
                     self._client = client
                     self.is_live_agent_mode = False
+                    self.end_chat_clicked = False
                     self.connection_status = "AI Mode Active"
                     self.reset_flow_states()
                     self.sync_agent_ui_variables()
@@ -449,16 +552,28 @@ class AppState(rx.State):
         except Exception as e:
             self.status_message = f"Action wrapper failure: {str(e)}"
 
-    def set_mode_load(self):
+    def set_mode_start(self):
+        self.aia_mode = "start"
         self.is_merging = False
         self.status_message = "Awaiting brand new agent profile configuration stream."
 
+    def set_mode_load(self):
+        self.set_mode_start()
+
+    def set_mode_switch(self):
+        self.aia_mode = "switch"
+        self.is_merging = False
+        self.status_message = "Awaiting agent profile configuration stream to switch behavior."
+
     def set_mode_merge(self):
+        self.aia_mode = "merge"
         self.is_merging = True
         self.status_message = "Awaiting secondary capabilities extension stream."
 
     def reset_flow_states(self):
         self.awaiting_key_secret = False
+        self.merging_aia = False
+        self.switching_aia = False
         self.secret_key = ""
         self._saved_file_content = ""
 
@@ -626,7 +741,10 @@ class AppState(rx.State):
                 return
 
             # Standard conversational path
-            ai_response, ai_file_type = await client.process_user_input(message, sender="user")
+            active_lang = self.language or self.locale
+            ai_response, ai_file_type = await client.process_user_input(
+                message, sender="user", language=active_lang
+            )
             self._refresh_messages()
             await client.update_pinion_session()
             if not ai_response:
@@ -641,7 +759,7 @@ class AppState(rx.State):
             # Keep popping inline structural intents if next_intent chains are nested active
             while client.next_intent:
                 chained_response, chained_file_type = await client.process_user_input(
-                    user_input="", sender="user"
+                    user_input="", sender="user", language=active_lang
                 )
                 self._refresh_messages()
                 await client.update_pinion_session()

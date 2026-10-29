@@ -224,7 +224,7 @@ def render_chat_bubble(message: dict[str, str]) -> rx.Component:
     )
 
 def agent_selection_subpanel() -> rx.Component:
-    """Renders account agents that can be loaded or merged into this chat."""
+    """Renders account agents that can be started, switched, or merged into this chat."""
     return rx.vstack(
         rx.hstack(
             rx.text(
@@ -262,13 +262,24 @@ def agent_selection_subpanel() -> rx.Component:
         ),
         rx.hstack(
             rx.button(
-                "Load Agent",
+                "Start Agent",
                 color_scheme=AppState.accent_color,
                 variant="soft",
                 size="1",
-                on_click=AppState.load_selected_agent,
+                on_click=AppState.start_selected_agent,
                 disabled=AppState.selected_agent_uid == "",
                 flex="1",
+                title="Start fresh with this agent, resetting conversation history and session variables.",
+            ),
+            rx.button(
+                "Switch Agent",
+                color_scheme=AppState.accent_color,
+                variant="soft",
+                size="1",
+                on_click=AppState.switch_selected_agent,
+                disabled=AppState.selected_agent_uid == "",
+                flex="1",
+                title="Switch to this agent's behavior and intents while retaining current conversation variables.",
             ),
             rx.button(
                 "Merge Agent",
@@ -278,6 +289,7 @@ def agent_selection_subpanel() -> rx.Component:
                 on_click=AppState.merge_selected_agent,
                 disabled=AppState.selected_agent_uid == "",
                 flex="1",
+                title="Add this agent's capabilities to the current chat without replacing its session.",
             ),
             width="100%",
             spacing="2",
@@ -322,7 +334,7 @@ def aia_management_subpanel() -> rx.Component:
             color="var(--gray-12)",
         ),
         rx.text(
-            "Load a saved agent or merge its capabilities into the current chat.",
+            "Start a saved agent, switch behavior, or merge its capabilities into the current chat.",
             size="1",
             color="var(--gray-11)",
         ),
@@ -330,25 +342,39 @@ def aia_management_subpanel() -> rx.Component:
         # Segmented Tab Selection to switch workflow mode intent before loading
         rx.hstack(
             rx.button(
-                "Load AIA", 
-                color_scheme=rx.cond(~AppState.is_merging, AppState.accent_color, "gray"),
-                variant=rx.cond(~AppState.is_merging, "soft", "surface"),
+                "Start AIA", 
+                color_scheme=rx.cond(AppState.aia_mode == "start", AppState.accent_color, "gray"),
+                variant=rx.cond(AppState.aia_mode == "start", "soft", "surface"),
                 size="1",
-                on_click=AppState.set_mode_load
+                flex="1",
+                title="Start fresh with this AIA file.",
+                on_click=AppState.set_mode_start,
+            ),
+            rx.button(
+                "Switch AIA", 
+                color_scheme=rx.cond(AppState.aia_mode == "switch", AppState.accent_color, "gray"),
+                variant=rx.cond(AppState.aia_mode == "switch", "soft", "surface"),
+                size="1",
+                flex="1",
+                title="Switch to this AIA agent retaining current variables.",
+                on_click=AppState.set_mode_switch,
             ),
             rx.button(
                 "Merge AIA", 
-                color_scheme=rx.cond(AppState.is_merging, AppState.accent_color, "gray"),
-                variant=rx.cond(AppState.is_merging, "soft", "surface"),
+                color_scheme=rx.cond(AppState.aia_mode == "merge", AppState.accent_color, "gray"),
+                variant=rx.cond(AppState.aia_mode == "merge", "soft", "surface"),
                 size="1",
-                on_click=AppState.set_mode_merge
+                flex="1",
+                title="Merge this AIA agent capabilities additively.",
+                on_click=AppState.set_mode_merge,
             ),
-            spacing="2"
+            width="100%",
+            spacing="2",
         ),
         
         # Central operational toggle branch: Intercept layout if password lock matches
         rx.cond(
-            AppState.awaiting_key_secret,
+            AppState.awaiting_key_secret | AppState.merging_aia | AppState.switching_aia,
             
             # --- Decryption Key Subform Overlay ---
             rx.vstack(
@@ -362,7 +388,20 @@ def aia_management_subpanel() -> rx.Component:
                     width="100%"
                 ),
                 rx.hstack(
-                    rx.button("Unlock", color_scheme="green", size="1", on_click=AppState.submit_secret_key),
+                    rx.button(
+                        rx.cond(
+                            AppState.merging_aia,
+                            "Unlock and Merge Agent",
+                            rx.cond(
+                                AppState.switching_aia,
+                                "Unlock and Switch Agent",
+                                "Unlock and Start Agent",
+                            ),
+                        ),
+                        color_scheme="green",
+                        size="1",
+                        on_click=AppState.submit_secret_key,
+                    ),
                     rx.button("Cancel", color_scheme="gray", size="1", on_click=AppState.reset_flow_states)
                 ),
                 width="100%",
@@ -403,11 +442,11 @@ def aia_management_subpanel() -> rx.Component:
 def sidebar_panel() -> rx.Component:
     """The compact agent and session controls shown above the chat."""
     return rx.vstack(
-        # 1. Choose an account agent to load or merge.
+        # 1. Choose an account agent to start, switch, or merge.
         agent_selection_subpanel(),
         rx.divider(),
 
-        # 2. Load or merge a saved AIA file.
+        # 2. Start, switch, or merge a saved AIA file.
         aia_management_subpanel(),
         rx.divider(),
 
