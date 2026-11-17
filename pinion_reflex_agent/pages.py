@@ -439,6 +439,128 @@ def aia_management_subpanel() -> rx.Component:
         border="1px solid #e2e8f0"
     )
 
+def render_customer_session(session: dict[str, str]) -> rx.Component:
+    return rx.vstack(
+        rx.text(
+            rx.cond(session["name"] != "", session["name"], "Untitled session"),
+            font_weight="bold",
+        ),
+        rx.text(session["summary"], size="1", color="gray"),
+        rx.button(
+            "Resume",
+            on_click=AppState.resume_customer_session(session["uid"]),
+            size="1",
+            variant="outline",
+        ),
+        width="100%",
+        align_items="start",
+        spacing="1",
+        padding="0.5em",
+        border="1px solid var(--gray-4)",
+        border_radius="md",
+    )
+
+
+def customer_session_panel() -> rx.Component:
+    return rx.vstack(
+        rx.text("Customer history", font_weight="bold", size="2"),
+        rx.cond(
+            AppState.customer_signed_in,
+            rx.vstack(
+                rx.text("Signed in. Only your linked sessions are shown.", size="1"),
+                rx.button(
+                    "Refresh sessions",
+                    on_click=AppState.refresh_customer_sessions,
+                    size="2",
+                    variant="outline",
+                ),
+                rx.foreach(AppState.customer_sessions, render_customer_session),
+                rx.button(
+                    "Sign out",
+                    on_click=AppState.sign_out_customer,
+                    size="2",
+                    variant="ghost",
+                ),
+                width="100%",
+                align_items="stretch",
+                spacing="2",
+            ),
+            rx.cond(
+                AppState.customer_auth_type == "phone_otp",
+                rx.cond(
+                    AppState.customer_otp_challenge_id != "",
+                    rx.form(
+                        rx.vstack(
+                            rx.input(
+                                name="code",
+                                type="password",
+                                placeholder="Six-digit verification code",
+                                max_length=6,
+                                required=True,
+                            ),
+                            rx.button("Verify code", type="submit", width="100%"),
+                            rx.button(
+                                "Request another code",
+                                on_click=AppState.reset_customer_otp,
+                                variant="ghost",
+                                width="100%",
+                            ),
+                            width="100%",
+                            spacing="2",
+                        ),
+                        on_submit=AppState.verify_customer_otp,
+                        reset_on_submit=True,
+                        width="100%",
+                    ),
+                    rx.form(
+                        rx.vstack(
+                            rx.input(
+                                name="phone",
+                                placeholder="Saved phone number (+15551234567)",
+                                required=True,
+                            ),
+                            rx.button("Send verification code", type="submit", width="100%"),
+                            width="100%",
+                            spacing="2",
+                        ),
+                        on_submit=AppState.request_customer_otp,
+                        reset_on_submit=True,
+                        width="100%",
+                    ),
+                ),
+                rx.cond(
+                    AppState.customer_auth_type == "password",
+                    rx.form(
+                        rx.vstack(
+                            rx.input(
+                                name="identifier",
+                                placeholder="Phone, email, or customer UID",
+                                required=True,
+                            ),
+                            rx.input(
+                                name="password",
+                                type="password",
+                                placeholder="Password",
+                                required=True,
+                            ),
+                            rx.button("Sign in", type="submit", width="100%"),
+                            width="100%",
+                            spacing="2",
+                        ),
+                        on_submit=AppState.sign_in_customer,
+                        reset_on_submit=True,
+                        width="100%",
+                    ),
+                    rx.text("Customer session history sign-in is disabled for this agent.", size="1"),
+                ),
+            ),
+        ),
+        width="100%",
+        align_items="stretch",
+        spacing="2",
+    )
+
+
 def sidebar_panel() -> rx.Component:
     """The compact agent and session controls shown above the chat."""
     return rx.vstack(
@@ -448,6 +570,9 @@ def sidebar_panel() -> rx.Component:
 
         # 2. Start, switch, or merge a saved AIA file.
         aia_management_subpanel(),
+        rx.divider(),
+
+        customer_session_panel(),
         rx.divider(),
 
         # 3. Session routing controls follow agent selection and loading.

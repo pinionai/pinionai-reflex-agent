@@ -50,6 +50,10 @@ class AppState(rx.State):
     selected_agent_uid: str = ""
     agent_list_error: str = ""
     agent_selection_status: str = ""
+    customer_signed_in: bool = False
+    customer_sessions: list[dict[str, str]] = []
+    customer_auth_type: str = "password"
+    customer_otp_challenge_id: str = ""
 
     # --- Audio Engine Variable Bindings (STT / TTS) ---
     is_processing_audio: bool = False
@@ -159,6 +163,8 @@ class AppState(rx.State):
         await self._ensure_client()
         client = self._client
         if client is not None:
+            self.customer_signed_in = bool(client._customer_access_token)
+            self.customer_auth_type = client.var.get("resumeSessionAuthType", "password")
             if self.language and self.language != "en":
                 client.var["user_language"] = self.language
             elif client.var.get("user_language"):
@@ -168,6 +174,107 @@ class AppState(rx.State):
             if self.agentlist_mode:
                 await self._load_available_agents(client)
             self._ensure_initial_greeting()
+
+    @rx.event
+    async def sign_in_customer(self, form_data: dict[str, str]):
+        client = self._client
+        if client is None:
+            yield rx.toast.error("The chat session is not ready for customer sign-in.")
+            return
+        try:
+            await client.login_customer(
+                form_data.get("identifier", ""),
+                form_data.get("password", ""),
+            )
+            self.customer_signed_in = True
+            self.customer_sessions = await client.list_customer_sessions()
+            yield rx.toast.success("Signed in. This active conversation is linked to your account.")
+        except Exception as e:
+            yield rx.toast.error(f"Could not sign in: {e}")
+
+    @rx.event
+    async def request_customer_otp(self, form_data: dict[str, str]):
+        client = self._client
+        if client is None:
+            yield rx.toast.error("The chat session is not ready for customer sign-in.")
+            return
+        try:
+            self.customer_otp_challenge_id = await client.request_customer_otp(
+                form_data.get("phone", "")
+            )
+            yield rx.toast.info("If the phone number is eligible, a verification code has been sent.")
+        except Exception as e:
+            yield rx.toast.error(f"Could not request phone sign-in: {e}")
+
+    @rx.event
+    async def verify_customer_otp(self, form_data: dict[str, str]):
+        client = self._client
+        if client is None or not self.customer_otp_challenge_id:
+            yield rx.toast.error("Request a verification code before signing in.")
+            return
+        try:
+            await client.verify_customer_otp(
+                self.customer_otp_challenge_id,
+                form_data.get("code", ""),
+            )
+            self.customer_otp_challenge_id = ""
+            self.customer_signed_in = True
+            self.customer_sessions = await client.list_customer_sessions()
+            yield rx.toast.success("Signed in. This active conversation is linked to your account.")
+        except Exception as e:
+            yield rx.toast.error(f"Could not verify phone sign-in: {e}")
+
+    @rx.event
+    def reset_customer_otp(self):
+        self.customer_otp_challenge_id = ""
+
+    @rx.event
+    async def refresh_customer_sessions(self):
+        client = self._client
+        if client is None:
+            yield rx.toast.error("No active chat session.")
+            return
+        try:
+            self.customer_sessions = await client.list_customer_sessions()
+        except Exception as e:
+            yield rx.toast.error(f"Could not load previous sessions: {e}")
+
+    @rx.event
+    async def resume_customer_session(self, session_uid: str):
+        current_client = self._client
+        if current_client is None:
+            yield rx.toast.error("No active chat session.")
+            return
+        try:
+            resumed_client = await current_client.resume_customer_session(session_uid)
+            self._client = resumed_client
+            await current_client.end_grpc_chat_session(send_goodbye=False)
+            await current_client.close()
+            self.sync_agent_ui_variables()
+            self.customer_signed_in = bool(resumed_client._customer_access_token)
+            self.customer_auth_type = resumed_client.var.get("resumeSessionAuthType", "password")
+            if self.customer_signed_in:
+                self.customer_sessions = await resumed_client.list_customer_sessions()
+            self.end_chat_clicked = False
+            self.status_message = "Ready"
+            yield rx.toast.success("Previous conversation restored.")
+        except Exception as e:
+            yield rx.toast.error(f"Could not resume session: {e}")
+
+    @rx.event
+    async def sign_out_customer(self):
+        client = self._client
+        if client is None:
+            yield rx.toast.error("No active chat session.")
+            return
+        try:
+            await client.logout_customer()
+            self.customer_signed_in = False
+            self.customer_sessions = []
+            self.customer_otp_challenge_id = ""
+            yield rx.toast.success("Signed out.")
+        except Exception as e:
+            yield rx.toast.error(f"Could not sign out: {e}")
 
     def set_language(self, lang: str):
         """Sets the active translation language."""

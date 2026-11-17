@@ -1,5 +1,11 @@
 PinionAI Reflex Agent
 
+## Customer session history
+
+Customer authentication is optional. The chat includes a sign-in form and customer history panel: signing in links the
+active conversation, refresh lists only that customer's sessions, and Resume replaces the active client with an owned
+saved session. Sign out revokes the customer token. Anonymous conversations remain unlinked until sign-in.
+
 Launch and test locally:
 
 Start the development server. This command fires up both the FastAPI backend and the Next.js/React frontend with hot-reloading enabled (changes you save to the code will immediately reflect in the browser without dropping states):
