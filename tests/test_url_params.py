@@ -512,15 +512,32 @@ class TestUrlParamsSupport(unittest.IsolatedAsyncioTestCase):
         aia_sub = aia_management_subpanel()
         self.assertIsNotNone(aia_sub)
 
-    async def test_on_init_legacy_client_without_customer_token(self):
-        """Verify on_init does not raise AttributeError if client lacks _customer_access_token."""
+    def _make_legacy_client(self):
         from pinionai import AsyncPinionAIClient
         mock_client = MagicMock(spec=AsyncPinionAIClient)
         mock_client.chat_messages = []
         mock_client.var = {}
+        mock_client.get_chat_messages_for_display.return_value = []
+        for attr in (
+            "_customer_access_token",
+            "login_customer",
+            "register_customer",
+            "request_customer_otp",
+            "register_customer_otp",
+            "verify_customer_otp",
+            "list_customer_sessions",
+            "resume_customer_session",
+            "logout_customer",
+        ):
+            if hasattr(mock_client, attr):
+                delattr(mock_client, attr)
+        return mock_client
+
+    async def test_on_init_legacy_client_without_customer_token(self):
+        """Verify on_init does not raise AttributeError if client lacks customer auth methods."""
+        mock_client = self._make_legacy_client()
         self.state._client = mock_client
 
-        # Must not raise AttributeError: 'AsyncPinionAIClient' object has no attribute '_customer_access_token'
         await self.state.on_init()
         self.assertFalse(self.state.customer_signed_in)
         self.assertEqual(self.state.customer_auth_type, "disabled")
@@ -539,18 +556,23 @@ class TestUrlParamsSupport(unittest.IsolatedAsyncioTestCase):
 
     async def test_customer_events_graceful_on_legacy_client(self):
         """Verify customer auth event handlers yield toast errors instead of crashing when client lacks methods."""
-        from pinionai import AsyncPinionAIClient
-        mock_client = MagicMock(spec=AsyncPinionAIClient)
-        mock_client.chat_messages = []
-        mock_client.var = {}
+        mock_client = self._make_legacy_client()
         self.state._client = mock_client
 
         # sign_in_customer
         events = [ev async for ev in self.state.sign_in_customer({"identifier": "u", "password": "p"})]
         self.assertEqual(len(events), 1)
 
+        # register_customer
+        events = [ev async for ev in self.state.register_customer({"identifier": "u", "password": "p"})]
+        self.assertEqual(len(events), 1)
+
         # request_customer_otp
         events = [ev async for ev in self.state.request_customer_otp({"phone": "123"})]
+        self.assertEqual(len(events), 1)
+
+        # register_customer_otp
+        events = [ev async for ev in self.state.register_customer_otp({"phone": "123"})]
         self.assertEqual(len(events), 1)
 
         # verify_customer_otp
@@ -574,7 +596,11 @@ class TestUrlParamsSupport(unittest.IsolatedAsyncioTestCase):
     async def test_customer_events_with_supported_client(self):
         """Verify customer auth event handlers succeed when client implements customer methods."""
         mock_client = MagicMock()
-        mock_client.login_customer = AsyncMock(return_value=None)
+        mock_client.login_customer = AsyncMock(return_value={"customer_uid": "c1", "expires_in": 3600})
+        mock_client.register_customer = AsyncMock(return_value={"customer_uid": "c1", "expires_in": 3600})
+        mock_client.request_customer_otp = AsyncMock(return_value="chall_1")
+        mock_client.register_customer_otp = AsyncMock(return_value="chall_2")
+        mock_client.verify_customer_otp = AsyncMock(return_value={"customer_uid": "c1", "expires_in": 3600})
         mock_client.list_customer_sessions = AsyncMock(return_value=[{"uid": "s1", "name": "Session 1", "summary": "Sum"}])
         mock_client._customer_access_token = "access_tok"
         mock_client.var = {}
@@ -585,6 +611,24 @@ class TestUrlParamsSupport(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(self.state.customer_signed_in)
         self.assertEqual(len(self.state.customer_sessions), 1)
         mock_client.login_customer.assert_awaited_once_with("user", "pw")
+
+        self.state.customer_signed_in = False
+        events = [ev async for ev in self.state.register_customer({"identifier": "user2", "password": "pw", "first_name": "A", "last_name": "B"})]
+        self.assertTrue(self.state.customer_signed_in)
+        mock_client.register_customer.assert_awaited_once_with("user2", "pw", first_name="A", last_name="B")
+
+        events = [ev async for ev in self.state.register_customer_otp({"phone": "+15551234567", "first_name": "A", "last_name": "B"})]
+        self.assertEqual(self.state.customer_otp_challenge_id, "chall_2")
+        mock_client.register_customer_otp.assert_awaited_once_with("+15551234567", first_name="A", last_name="B")
+
+        self.state.set_customer_auth_tab("signup")
+        self.assertEqual(self.state.customer_auth_tab, "signup")
+
+    def test_customer_session_panel_renders(self):
+        """Verify customer_session_panel component builds without error."""
+        from pinion_reflex_agent.pages import customer_session_panel
+        panel = customer_session_panel()
+        self.assertIsNotNone(panel)
 
 
 if __name__ == "__main__":

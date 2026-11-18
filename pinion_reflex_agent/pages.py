@@ -512,44 +512,126 @@ def customer_session_panel() -> rx.Component:
                         reset_on_submit=True,
                         width="100%",
                     ),
-                    rx.form(
-                        rx.vstack(
-                            rx.input(
-                                name="phone",
-                                placeholder="Saved phone number (+15551234567)",
-                                required=True,
-                            ),
-                            rx.button("Send verification code", type="submit", width="100%"),
+                    rx.vstack(
+                        rx.segmented_control.root(
+                            rx.segmented_control.item("Sign In", value="signin"),
+                            rx.segmented_control.item("Sign Up", value="signup"),
+                            value=AppState.customer_auth_tab,
+                            on_change=AppState.set_customer_auth_tab,
+                            size="1",
                             width="100%",
-                            spacing="2",
                         ),
-                        on_submit=AppState.request_customer_otp,
-                        reset_on_submit=True,
+                        rx.cond(
+                            AppState.customer_auth_tab == "signup",
+                            rx.form(
+                                rx.vstack(
+                                    rx.input(
+                                        name="phone",
+                                        placeholder="Phone number (+15551234567)",
+                                        required=True,
+                                    ),
+                                    rx.input(
+                                        name="first_name",
+                                        placeholder="First name",
+                                    ),
+                                    rx.input(
+                                        name="last_name",
+                                        placeholder="Last name",
+                                    ),
+                                    rx.button("Sign up with phone", type="submit", width="100%"),
+                                    width="100%",
+                                    spacing="2",
+                                ),
+                                on_submit=AppState.register_customer_otp,
+                                reset_on_submit=True,
+                                width="100%",
+                            ),
+                            rx.form(
+                                rx.vstack(
+                                    rx.input(
+                                        name="phone",
+                                        placeholder="Saved phone number (+15551234567)",
+                                        required=True,
+                                    ),
+                                    rx.button("Send verification code", type="submit", width="100%"),
+                                    width="100%",
+                                    spacing="2",
+                                ),
+                                on_submit=AppState.request_customer_otp,
+                                reset_on_submit=True,
+                                width="100%",
+                            ),
+                        ),
                         width="100%",
+                        spacing="2",
                     ),
                 ),
                 rx.cond(
                     AppState.customer_auth_type == "password",
-                    rx.form(
-                        rx.vstack(
-                            rx.input(
-                                name="identifier",
-                                placeholder="Phone, email, or customer UID",
-                                required=True,
-                            ),
-                            rx.input(
-                                name="password",
-                                type="password",
-                                placeholder="Password",
-                                required=True,
-                            ),
-                            rx.button("Sign in", type="submit", width="100%"),
+                    rx.vstack(
+                        rx.segmented_control.root(
+                            rx.segmented_control.item("Sign In", value="signin"),
+                            rx.segmented_control.item("Sign Up", value="signup"),
+                            value=AppState.customer_auth_tab,
+                            on_change=AppState.set_customer_auth_tab,
+                            size="1",
                             width="100%",
-                            spacing="2",
                         ),
-                        on_submit=AppState.sign_in_customer,
-                        reset_on_submit=True,
+                        rx.cond(
+                            AppState.customer_auth_tab == "signup",
+                            rx.form(
+                                rx.vstack(
+                                    rx.input(
+                                        name="identifier",
+                                        placeholder="Phone or email",
+                                        required=True,
+                                    ),
+                                    rx.input(
+                                        name="password",
+                                        type="password",
+                                        placeholder="Password",
+                                        required=True,
+                                    ),
+                                    rx.input(
+                                        name="first_name",
+                                        placeholder="First name",
+                                    ),
+                                    rx.input(
+                                        name="last_name",
+                                        placeholder="Last name",
+                                    ),
+                                    rx.button("Sign up", type="submit", width="100%"),
+                                    width="100%",
+                                    spacing="2",
+                                ),
+                                on_submit=AppState.register_customer,
+                                reset_on_submit=True,
+                                width="100%",
+                            ),
+                            rx.form(
+                                rx.vstack(
+                                    rx.input(
+                                        name="identifier",
+                                        placeholder="Phone, email or ID",
+                                        required=True,
+                                    ),
+                                    rx.input(
+                                        name="password",
+                                        type="password",
+                                        placeholder="Password",
+                                        required=True,
+                                    ),
+                                    rx.button("Sign in", type="submit", width="100%"),
+                                    width="100%",
+                                    spacing="2",
+                                ),
+                                on_submit=AppState.sign_in_customer,
+                                reset_on_submit=True,
+                                width="100%",
+                            ),
+                        ),
                         width="100%",
+                        spacing="2",
                     ),
                     rx.text("Customer session history sign-in is disabled for this agent.", size="1"),
                 ),

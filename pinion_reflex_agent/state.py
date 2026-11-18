@@ -54,6 +54,7 @@ class AppState(rx.State):
     customer_sessions: list[dict[str, str]] = []
     customer_auth_type: str = "disabled"
     customer_otp_challenge_id: str = ""
+    customer_auth_tab: str = "signin"
 
     # --- Audio Engine Variable Bindings (STT / TTS) ---
     is_processing_audio: bool = False
@@ -163,7 +164,11 @@ class AppState(rx.State):
         await self._ensure_client()
         client = self._client
         if client is not None:
-            has_customer_support = hasattr(client, "_customer_access_token") or hasattr(client, "login_customer")
+            has_customer_support = (
+                hasattr(client, "_customer_access_token")
+                or hasattr(client, "login_customer")
+                or hasattr(client, "register_customer")
+            )
             self.customer_signed_in = bool(getattr(client, "_customer_access_token", None))
             self.customer_auth_type = (
                 client.var.get("resumeSessionAuthType", "password")
@@ -179,6 +184,13 @@ class AppState(rx.State):
             if self.agentlist_mode:
                 await self._load_available_agents(client)
             self._ensure_initial_greeting()
+
+    @rx.event
+    def set_customer_auth_tab(self, tab: str | list[str]):
+        if isinstance(tab, list):
+            self.customer_auth_tab = tab[0] if tab else "signin"
+        else:
+            self.customer_auth_tab = tab
 
     @rx.event
     async def sign_in_customer(self, form_data: dict[str, str]):
@@ -202,6 +214,29 @@ class AppState(rx.State):
             yield rx.toast.error(f"Could not sign in: {e}")
 
     @rx.event
+    async def register_customer(self, form_data: dict[str, str]):
+        client = self._client
+        if client is None:
+            yield rx.toast.error("The chat session is not ready for customer registration.")
+            return
+        if not hasattr(client, "register_customer"):
+            yield rx.toast.error("Customer registration is not supported by the current client library.")
+            return
+        try:
+            await client.register_customer(
+                form_data.get("identifier", ""),
+                form_data.get("password", ""),
+                first_name=form_data.get("first_name", ""),
+                last_name=form_data.get("last_name", ""),
+            )
+            self.customer_signed_in = bool(getattr(client, "_customer_access_token", True))
+            if hasattr(client, "list_customer_sessions"):
+                self.customer_sessions = await client.list_customer_sessions()
+            yield rx.toast.success("Signed in. This active conversation is linked to your account.")
+        except Exception as e:
+            yield rx.toast.error(f"Could not register account: {e}")
+
+    @rx.event
     async def request_customer_otp(self, form_data: dict[str, str]):
         client = self._client
         if client is None:
@@ -217,6 +252,25 @@ class AppState(rx.State):
             yield rx.toast.info("If the phone number is eligible, a verification code has been sent.")
         except Exception as e:
             yield rx.toast.error(f"Could not request phone sign-in: {e}")
+
+    @rx.event
+    async def register_customer_otp(self, form_data: dict[str, str]):
+        client = self._client
+        if client is None:
+            yield rx.toast.error("The chat session is not ready for customer registration.")
+            return
+        if not hasattr(client, "register_customer_otp"):
+            yield rx.toast.error("Customer registration is not supported by the current client library.")
+            return
+        try:
+            self.customer_otp_challenge_id = await client.register_customer_otp(
+                form_data.get("phone", ""),
+                first_name=form_data.get("first_name", ""),
+                last_name=form_data.get("last_name", ""),
+            )
+            yield rx.toast.info("Verification code has been sent.")
+        except Exception as e:
+            yield rx.toast.error(f"Could not register phone: {e}")
 
     @rx.event
     async def verify_customer_otp(self, form_data: dict[str, str]):
@@ -302,6 +356,7 @@ class AppState(rx.State):
             self.customer_signed_in = False
             self.customer_sessions = []
             self.customer_otp_challenge_id = ""
+            self.customer_auth_tab = "signin"
             yield rx.toast.success("Signed out.")
         except Exception as e:
             yield rx.toast.error(f"Could not sign out: {e}")
@@ -585,7 +640,11 @@ class AppState(rx.State):
         self.tts_enabled = bool(var.get("ttsAudio"))
 
         # Synchronize customer auth settings safely if supported by client
-        has_customer_support = hasattr(client, "_customer_access_token") or hasattr(client, "login_customer")
+        has_customer_support = (
+            hasattr(client, "_customer_access_token")
+            or hasattr(client, "login_customer")
+            or hasattr(client, "register_customer")
+        )
         if has_customer_support:
             self.customer_auth_type = var.get("resumeSessionAuthType", "password")
             if hasattr(client, "_customer_access_token"):
