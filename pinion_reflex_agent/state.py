@@ -6,12 +6,15 @@ import reflex as rx
 import asyncio
 import base64
 import binascii
+import logging
 import os
 import time
 from pinionai import AsyncPinionAIClient
 from pinionai.file_type_detection import is_text_file_type
 from pinionai.exceptions import PinionAIConfigurationError, PinionAIError
 from .agent_selection import get_available_agents, merge_agent_capabilities, switch_agent_capabilities
+
+logger = logging.getLogger(__name__)
 
 # Pinion clients contain CFFI handles and must stay outside serialized Reflex state.
 _CLIENTS_BY_TOKEN: dict[str, AsyncPinionAIClient] = {}
@@ -171,7 +174,7 @@ class AppState(rx.State):
             )
             self.customer_signed_in = bool(getattr(client, "_customer_access_token", None))
             self.customer_auth_type = (
-                client.var.get("resumeSessionAuthType", "password")
+                client.var.get("resumeSessionAuthType") or "none"
                 if has_customer_support
                 else "disabled"
             )
@@ -323,16 +326,31 @@ class AppState(rx.State):
             return
         try:
             resumed_client = await current_client.resume_customer_session(session_uid)
-            self._client = resumed_client
+        except Exception as e:
+            yield rx.toast.error(f"Could not resume session: {e}")
+            return
+        self._client = resumed_client
+        # Retire the replaced conversation: a live agent on it is told the customer left (as End Chat does),
+        # and the client is closed even when ending the live-agent connection fails.
+        try:
             if hasattr(current_client, "end_grpc_chat_session"):
-                await current_client.end_grpc_chat_session(send_goodbye=False)
+                await current_client.end_grpc_chat_session(
+                    send_goodbye=bool(getattr(current_client, "transfer_requested", ""))
+                )
+        except Exception as e:
+            logger.warning(f"Could not end the live-agent connection of the replaced conversation: {e}")
+        finally:
             if hasattr(current_client, "close"):
-                await current_client.close()
+                try:
+                    await current_client.close()
+                except Exception as e:
+                    logger.warning(f"Could not close the replaced client: {e}")
+        try:
             self.sync_agent_ui_variables()
             self.customer_signed_in = bool(getattr(resumed_client, "_customer_access_token", None))
             has_customer_support = hasattr(resumed_client, "_customer_access_token") or hasattr(resumed_client, "login_customer")
             self.customer_auth_type = (
-                getattr(resumed_client, "var", {}).get("resumeSessionAuthType", "password")
+                getattr(resumed_client, "var", {}).get("resumeSessionAuthType") or "none"
                 if has_customer_support
                 else "disabled"
             )
@@ -342,7 +360,7 @@ class AppState(rx.State):
             self.status_message = "Ready"
             yield rx.toast.success("Previous conversation restored.")
         except Exception as e:
-            yield rx.toast.error(f"Could not resume session: {e}")
+            yield rx.toast.error(f"Previous conversation restored, but its details could not be refreshed: {e}")
 
     @rx.event
     async def sign_out_customer(self):
@@ -353,13 +371,15 @@ class AppState(rx.State):
         try:
             if hasattr(client, "logout_customer"):
                 await client.logout_customer()
-            self.customer_signed_in = False
-            self.customer_sessions = []
-            self.customer_otp_challenge_id = ""
-            self.customer_auth_tab = "signin"
-            yield rx.toast.success("Signed out.")
         except Exception as e:
-            yield rx.toast.error(f"Could not sign out: {e}")
+            logger.warning(f"Customer sign-out was not confirmed: {e}")
+        if getattr(client, "_customer_access_token", None):
+            client._customer_access_token = None  # older client libraries keep a token the API rejected
+        self.customer_signed_in = False
+        self.customer_sessions = []
+        self.customer_otp_challenge_id = ""
+        self.customer_auth_tab = "signin"
+        yield rx.toast.success("Signed out.")
 
     def set_language(self, lang: str):
         """Sets the active translation language."""
@@ -646,7 +666,7 @@ class AppState(rx.State):
             or hasattr(client, "register_customer")
         )
         if has_customer_support:
-            self.customer_auth_type = var.get("resumeSessionAuthType", "password")
+            self.customer_auth_type = var.get("resumeSessionAuthType") or "none"
             if hasattr(client, "_customer_access_token"):
                 self.customer_signed_in = bool(getattr(client, "_customer_access_token", None))
         else:
