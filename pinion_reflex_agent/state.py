@@ -52,7 +52,7 @@ class AppState(rx.State):
     agent_selection_status: str = ""
     customer_signed_in: bool = False
     customer_sessions: list[dict[str, str]] = []
-    customer_auth_type: str = "password"
+    customer_auth_type: str = "disabled"
     customer_otp_challenge_id: str = ""
 
     # --- Audio Engine Variable Bindings (STT / TTS) ---
@@ -163,8 +163,13 @@ class AppState(rx.State):
         await self._ensure_client()
         client = self._client
         if client is not None:
-            self.customer_signed_in = bool(client._customer_access_token)
-            self.customer_auth_type = client.var.get("resumeSessionAuthType", "password")
+            has_customer_support = hasattr(client, "_customer_access_token") or hasattr(client, "login_customer")
+            self.customer_signed_in = bool(getattr(client, "_customer_access_token", None))
+            self.customer_auth_type = (
+                client.var.get("resumeSessionAuthType", "password")
+                if has_customer_support
+                else "disabled"
+            )
             if self.language and self.language != "en":
                 client.var["user_language"] = self.language
             elif client.var.get("user_language"):
@@ -181,13 +186,17 @@ class AppState(rx.State):
         if client is None:
             yield rx.toast.error("The chat session is not ready for customer sign-in.")
             return
+        if not hasattr(client, "login_customer"):
+            yield rx.toast.error("Customer authentication is not supported by the current client library.")
+            return
         try:
             await client.login_customer(
                 form_data.get("identifier", ""),
                 form_data.get("password", ""),
             )
-            self.customer_signed_in = True
-            self.customer_sessions = await client.list_customer_sessions()
+            self.customer_signed_in = bool(getattr(client, "_customer_access_token", True))
+            if hasattr(client, "list_customer_sessions"):
+                self.customer_sessions = await client.list_customer_sessions()
             yield rx.toast.success("Signed in. This active conversation is linked to your account.")
         except Exception as e:
             yield rx.toast.error(f"Could not sign in: {e}")
@@ -197,6 +206,9 @@ class AppState(rx.State):
         client = self._client
         if client is None:
             yield rx.toast.error("The chat session is not ready for customer sign-in.")
+            return
+        if not hasattr(client, "request_customer_otp"):
+            yield rx.toast.error("Customer authentication is not supported by the current client library.")
             return
         try:
             self.customer_otp_challenge_id = await client.request_customer_otp(
@@ -212,14 +224,18 @@ class AppState(rx.State):
         if client is None or not self.customer_otp_challenge_id:
             yield rx.toast.error("Request a verification code before signing in.")
             return
+        if not hasattr(client, "verify_customer_otp"):
+            yield rx.toast.error("Customer authentication is not supported by the current client library.")
+            return
         try:
             await client.verify_customer_otp(
                 self.customer_otp_challenge_id,
                 form_data.get("code", ""),
             )
             self.customer_otp_challenge_id = ""
-            self.customer_signed_in = True
-            self.customer_sessions = await client.list_customer_sessions()
+            self.customer_signed_in = bool(getattr(client, "_customer_access_token", True))
+            if hasattr(client, "list_customer_sessions"):
+                self.customer_sessions = await client.list_customer_sessions()
             yield rx.toast.success("Signed in. This active conversation is linked to your account.")
         except Exception as e:
             yield rx.toast.error(f"Could not verify phone sign-in: {e}")
@@ -234,6 +250,9 @@ class AppState(rx.State):
         if client is None:
             yield rx.toast.error("No active chat session.")
             return
+        if not hasattr(client, "list_customer_sessions"):
+            yield rx.toast.error("Customer sessions are not supported by the current client library.")
+            return
         try:
             self.customer_sessions = await client.list_customer_sessions()
         except Exception as e:
@@ -245,15 +264,25 @@ class AppState(rx.State):
         if current_client is None:
             yield rx.toast.error("No active chat session.")
             return
+        if not hasattr(current_client, "resume_customer_session"):
+            yield rx.toast.error("Resuming customer sessions is not supported by the current client library.")
+            return
         try:
             resumed_client = await current_client.resume_customer_session(session_uid)
             self._client = resumed_client
-            await current_client.end_grpc_chat_session(send_goodbye=False)
-            await current_client.close()
+            if hasattr(current_client, "end_grpc_chat_session"):
+                await current_client.end_grpc_chat_session(send_goodbye=False)
+            if hasattr(current_client, "close"):
+                await current_client.close()
             self.sync_agent_ui_variables()
-            self.customer_signed_in = bool(resumed_client._customer_access_token)
-            self.customer_auth_type = resumed_client.var.get("resumeSessionAuthType", "password")
-            if self.customer_signed_in:
+            self.customer_signed_in = bool(getattr(resumed_client, "_customer_access_token", None))
+            has_customer_support = hasattr(resumed_client, "_customer_access_token") or hasattr(resumed_client, "login_customer")
+            self.customer_auth_type = (
+                getattr(resumed_client, "var", {}).get("resumeSessionAuthType", "password")
+                if has_customer_support
+                else "disabled"
+            )
+            if self.customer_signed_in and hasattr(resumed_client, "list_customer_sessions"):
                 self.customer_sessions = await resumed_client.list_customer_sessions()
             self.end_chat_clicked = False
             self.status_message = "Ready"
@@ -268,7 +297,8 @@ class AppState(rx.State):
             yield rx.toast.error("No active chat session.")
             return
         try:
-            await client.logout_customer()
+            if hasattr(client, "logout_customer"):
+                await client.logout_customer()
             self.customer_signed_in = False
             self.customer_sessions = []
             self.customer_otp_challenge_id = ""
@@ -553,6 +583,16 @@ class AppState(rx.State):
         # These hold provider names (e.g. "pinionai stt whisper server") when enabled
         self.stt_enabled = bool(var.get("sttAudio"))
         self.tts_enabled = bool(var.get("ttsAudio"))
+
+        # Synchronize customer auth settings safely if supported by client
+        has_customer_support = hasattr(client, "_customer_access_token") or hasattr(client, "login_customer")
+        if has_customer_support:
+            self.customer_auth_type = var.get("resumeSessionAuthType", "password")
+            if hasattr(client, "_customer_access_token"):
+                self.customer_signed_in = bool(getattr(client, "_customer_access_token", None))
+        else:
+            self.customer_auth_type = "disabled"
+            self.customer_signed_in = False
 
         # Inject standard onboarding greeting if history container is empty
         if not client.chat_messages and var.get("agentStart"):
