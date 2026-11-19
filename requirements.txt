@@ -52,7 +52,7 @@ botocore==1.44.6
     # via
     #   boto3
     #   s3transfer
-cachetools==8.0.1
+cachetools==8.0.2
     # via py-key-value-aio
 caio==0.12.10
     # via aiofile
@@ -143,7 +143,7 @@ google-crc32c==1.9.0
     # via
     #   google-cloud-storage
     #   google-resumable-media
-google-genai==3.5.0
+google-genai==3.6.1
     # via pinionai
 google-resumable-media==2.11.0
     # via google-cloud-storage
@@ -255,7 +255,7 @@ mdurl==0.1.2
     # via markdown-it-py
 mini-racer==0.14.1
     # via pinionai
-mistralai==3.7.0
+mistralai==3.8.0
     # via pinionai
 multidict==7.2.1
     # via
@@ -323,7 +323,7 @@ paramiko==5.1.0
     # via pinionai
 pathable==0.6.0
     # via jsonschema-path
-pinionai==0.5.5
+pinionai==0.5.6
     # via -r requirements.in
 platformdirs==4.14.7
     # via
@@ -585,7 +585,7 @@ typing-inspection==0.4.5
     #   mistralai
     #   pydantic
     #   pydantic-settings
-uncalled-for==0.6.1
+uncalled-for==0.6.2
     # via fastmcp-slim
 urllib3==2.8.0
     # via
