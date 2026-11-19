@@ -593,6 +593,47 @@ class TestUrlParamsSupport(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(events), 1)
         self.assertFalse(self.state.customer_signed_in)
 
+    async def test_resume_closes_the_replaced_client_even_when_its_goodbye_fails(self):
+        old_client = MagicMock()
+        old_client.transfer_requested = "yes"
+        old_client.end_grpc_chat_session = AsyncMock(side_effect=RuntimeError("grpc down"))
+        old_client.close = AsyncMock()
+        resumed = MagicMock()
+        resumed._customer_access_token = "tok"
+        resumed.var = {"resumeSessionAuthType": "password"}
+        resumed.chat_messages = []
+        resumed.get_chat_messages_for_display.return_value = []
+        resumed.list_customer_sessions = AsyncMock(return_value=[])
+        old_client.resume_customer_session = AsyncMock(return_value=resumed)
+        self.state._client = old_client
+
+        events = [ev async for ev in self.state.resume_customer_session("ses_uid")]
+        self.assertIs(self.state._client, resumed)
+        old_client.end_grpc_chat_session.assert_awaited_once_with(send_goodbye=True)
+        old_client.close.assert_awaited_once()
+        self.assertEqual(len(events), 1)
+
+    async def test_sign_out_clears_the_sign_in_when_the_api_rejects_the_token(self):
+        mock_client = MagicMock()
+        mock_client._customer_access_token = "expired"
+        mock_client.logout_customer = AsyncMock(side_effect=RuntimeError("Customer token expired"))
+        self.state._client = mock_client
+        self.state.customer_signed_in = True
+
+        events = [ev async for ev in self.state.sign_out_customer()]
+        self.assertFalse(self.state.customer_signed_in)
+        self.assertIsNone(mock_client._customer_access_token)
+        self.assertEqual(len(events), 1)
+
+    async def test_an_agent_copy_without_the_setting_offers_no_sign_in(self):
+        mock_client = MagicMock()
+        mock_client._customer_access_token = None
+        mock_client.chat_messages = []
+        mock_client.var = {}
+        self.state._client = mock_client
+        await self.state.on_init()
+        self.assertEqual(self.state.customer_auth_type, "none")
+
     async def test_customer_events_with_supported_client(self):
         """Verify customer auth event handlers succeed when client implements customer methods."""
         mock_client = MagicMock()
