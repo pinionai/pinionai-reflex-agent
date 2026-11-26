@@ -14,7 +14,7 @@ aiosignal==1.4.0
     # via aiohttp
 annotated-types==0.8.0
     # via pydantic
-anthropic==2.10.0
+anthropic==2.13.0
     # via pinionai
 anyio==4.16.0
     # via
@@ -36,7 +36,7 @@ attrs==26.1.0
     #   jsonschema
     #   jsonschema-path
     #   referencing
-authlib==1.9.9
+authlib==1.9.10
     # via fastmcp-slim
 bcrypt==5.0.0
     # via paramiko
@@ -46,9 +46,9 @@ beartype==0.23.1
     #   py-key-value-aio
 bidict==0.24.1
     # via python-socketio
-boto3==1.44.6
+boto3==1.44.10
     # via pinionai
-botocore==1.44.6
+botocore==1.44.10
     # via
     #   boto3
     #   s3transfer
@@ -56,7 +56,7 @@ cachetools==8.0.2
     # via py-key-value-aio
 caio==0.12.10
     # via aiofile
-certifi==2026.10.23
+certifi==2026.11.20
     # via
     #   fastmcp-slim
     #   httpcore
@@ -66,7 +66,7 @@ cffi==2.1.1
     # via
     #   cryptography
     #   pynacl
-charset-normalizer==3.5.2
+charset-normalizer==3.5.3
     # via requests
 click==8.5.1
     # via
@@ -83,7 +83,7 @@ cryptography==50.0.2
     #   pinionai
     #   pyjwt
     #   sendgrid
-cyclopts==5.5.2
+cyclopts==5.5.3
     # via fastmcp-slim
 distro==1.9.0
     # via
@@ -99,13 +99,13 @@ email-validator==2.4.0
     # via pydantic
 eval-type-backport==0.4.0
     # via mistralai
-exceptiongroup==1.3.1
+exceptiongroup==1.3.2
     # via fastmcp-slim
-fastmcp==4.2.2
+fastmcp==4.2.5
     # via
     #   -r requirements.in
     #   pinionai
-fastmcp-slim==4.2.2
+fastmcp-slim==4.2.5
     # via fastmcp
 ffmpeg-python==0.2.0
     # via pinionai
@@ -125,7 +125,7 @@ google-api-core==2.44.0
     #   google-cloud-speech
     #   google-cloud-storage
     #   pinionai
-google-auth==2.62.2
+google-auth==2.63.1
     # via
     #   google-api-core
     #   google-cloud-core
@@ -137,7 +137,7 @@ google-cloud-core==2.8.0
     # via google-cloud-storage
 google-cloud-speech==2.41.0
     # via pinionai
-google-cloud-storage==3.17.1
+google-cloud-storage==3.17.2
     # via pinionai
 google-crc32c==1.9.0
     # via
@@ -153,18 +153,18 @@ googleapis-common-protos==1.76.0
     #   grpcio-status
     #   opentelemetry-exporter-otlp-proto-grpc
     #   opentelemetry-exporter-otlp-proto-http
-granian==2.8.8
+granian==2.8.9
     # via reflex
 griffelib==2.4.1
     # via fastmcp-slim
-grpcio==1.85.3
+grpcio==1.85.4
     # via
     #   google-api-core
     #   google-cloud-speech
     #   grpcio-status
     #   opentelemetry-exporter-otlp-proto-grpc
     #   pinionai
-grpcio-status==1.85.3
+grpcio-status==1.85.4
     # via google-api-core
 h11==0.16.0
     # via
@@ -255,7 +255,7 @@ mdurl==0.1.2
     # via markdown-it-py
 mini-racer==0.14.1
     # via pinionai
-mistralai==3.8.0
+mistralai==3.9.0
     # via pinionai
 multidict==7.2.1
     # via
@@ -263,7 +263,7 @@ multidict==7.2.1
     #   yarl
 numpy==2.5.5
     # via pandas
-openai==3.55.1
+openai==3.59.0
     # via pinionai
 openapi-pydantic==0.6.0
     # via fastmcp-slim
@@ -311,7 +311,7 @@ opentelemetry-semantic-conventions==0.66b2
     # via
     #   mistralai
     #   opentelemetry-sdk
-packaging==26.3
+packaging==26.4
     # via
     #   fastmcp-slim
     #   reflex
@@ -323,9 +323,9 @@ paramiko==5.1.0
     # via pinionai
 pathable==0.6.0
     # via jsonschema-path
-pinionai==0.5.6
+pinionai==0.5.8
     # via -r requirements.in
-platformdirs==4.14.7
+platformdirs==4.14.8
     # via
     #   fastmcp-slim
     #   reflex-base
@@ -365,7 +365,7 @@ pyasn1-modules==0.4.2
     # via google-auth
 pycparser==3.12
     # via cffi
-pydantic==2.14.3
+pydantic==2.14.4
     # via
     #   anthropic
     #   fastmcp-slim
@@ -377,7 +377,7 @@ pydantic==2.14.3
     #   openapi-pydantic
     #   pydantic-settings
     #   telnyx
-pydantic-core==2.50.4
+pydantic-core==2.50.5
     # via pydantic
 pydantic-settings==2.16.3
     # via fastmcp-slim
@@ -421,13 +421,13 @@ python-multipart==0.0.34
     #   reflex-components-core
 python-socketio==5.18.1
     # via reflex
-pyyaml==6.0.3
+pyyaml==6.0.4
     # via
     #   fastmcp-slim
     #   jsonschema-path
 rapidfuzz==3.14.6
     # via levenshtein
-redis==8.1.0
+redis==8.2.0
     # via reflex
 referencing==0.37.0
     # via
@@ -451,7 +451,7 @@ reflex-base==0.11.0
     #   reflex-components-react-player
     #   reflex-components-recharts
     #   reflex-components-sonner
-reflex-build-sdk==0.1.1
+reflex-build-sdk==0.1.2
     # via reflex-hosting-cli
 reflex-components-code==0.11.0
     # via
@@ -497,7 +497,7 @@ reflex-components-sonner==0.10.0
     # via
     #   reflex
     #   reflex-components-core
-reflex-hosting-cli==0.2.2
+reflex-hosting-cli==0.2.2.post1
     # via reflex
 requests==2.34.2
     # via
@@ -536,7 +536,7 @@ sniffio==1.3.1
     #   google-genai
     #   openai
     #   telnyx
-sse-starlette==3.7.0
+sse-starlette==3.7.1
     # via mcp
 starlette==1.10.0
     # via

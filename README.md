@@ -84,7 +84,7 @@ When you deploy your application container via the gcloud CLI, you instruct Goog
 
 ```bash
 # Non-sensitive variables go in --set-env-vars; credentials come from Secret Manager.
-    --set-env-vars host_url="https://pinionai.com",version="",agent_id="YOUR_AGENT_ID" \
+    --set-env-vars host_url="https://api.pinionai.com",version="",agent_id="YOUR_AGENT_ID" \
     --set-secrets client_secret=PINION_CLIENT_SECRET:latest,client_id=PINION_CLIENT_ID:latest
 ```
 
@@ -155,7 +155,7 @@ gcloud run deploy ${IMAGE_NAME} \
     --timeout=3600 \
     --min-instances 0 \
     --memory 2Gi \
-    --set-env-vars host_url="https://pinionai.com",version="",agent_id="YOUR_AGENT_ID" \
+    --set-env-vars host_url="https://api.pinionai.com",version="",agent_id="YOUR_AGENT_ID" \
     --set-secrets client_secret=PINION_CLIENT_SECRET:latest,client_id=PINION_CLIENT_ID:latest
 ```
 
